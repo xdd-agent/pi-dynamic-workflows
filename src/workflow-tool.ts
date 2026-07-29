@@ -180,6 +180,7 @@ export function createWorkflowTool(options: WorkflowToolOptions = {}): ToolDefin
       // right exec context — e.g. deep-research's web tools — travels with it).
       let invocationTools: ToolDefinition[] | undefined;
       let invocationToolset: string | undefined;
+      let invocationAllowedExtensions: string[] | undefined;
       let script: string;
       if (params.name) {
         if (params.resumeFromRunId) {
@@ -196,6 +197,7 @@ export function createWorkflowTool(options: WorkflowToolOptions = {}): ToolDefin
         script = normalizeWorkflowScript(resolved.script);
         invocationTools = resolved.tools;
         invocationToolset = resolved.toolset;
+        invocationAllowedExtensions = resolved.allowedExtensions;
       } else {
         if (!params.script) throw new Error("workflow requires either `script` or `name`");
         script = normalizeWorkflowScript(params.script);
@@ -243,6 +245,7 @@ export function createWorkflowTool(options: WorkflowToolOptions = {}): ToolDefin
           tokenBudget: params.tokenBudget,
           tools: invocationTools,
           toolset: invocationToolset,
+          allowedExtensions: invocationAllowedExtensions,
         });
         return {
           content: [{ type: "text", text: backgroundStartedText(parsed.meta.name, runId) }],
@@ -272,6 +275,7 @@ export function createWorkflowTool(options: WorkflowToolOptions = {}): ToolDefin
           tokenBudget: params.tokenBudget,
           tools: invocationTools,
           toolset: invocationToolset,
+          allowedExtensions: invocationAllowedExtensions,
           confirm,
           externalSignal: signal,
           onProgress(live) {
