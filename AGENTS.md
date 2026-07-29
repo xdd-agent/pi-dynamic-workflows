@@ -6,9 +6,8 @@
 
 **Fork differences from upstream:**
 
-1. **`allowedExtensions`** — per-run extension allowlisting for subagents. In upstream, subagent sessions always load zero host extensions (`noExtensions: true`). This fork allows callers to opt into loading a specific subset. Threaded through the entire stack: tool schema → manager → agent → resource loader → persistence → saved workflows. The `dist/` directory is checked into git so the fork can be installed directly via `git` without a TypeScript build step.
-2. **`dist/` in git** — the `.gitignore` was modified to include built output, enabling `git install` without a build step.
-3. **Peer dependency floor** — bumped `@earendil-works/pi-coding-agent` from `>=0.80.6` to `>=0.80.8`.
+1. **`allowedExtensions`** — per-run extension allowlisting for subagents. In upstream, subagent sessions always load zero host extensions (`noExtensions: true`). This fork allows callers to opt into loading a specific subset. Threaded through the entire stack: tool schema → manager → agent → resource loader → persistence → saved workflows.
+2. **Peer dependency floor** — bumped `@earendil-works/pi-coding-agent` from `>=0.80.6` to `>=0.80.8`.
 
 ## Architecture overview
 
@@ -221,7 +220,7 @@ Some files under `skills/workflow-authoring/` are "guidance-frozen" — their SH
 3. **The capability contract is the source of truth for docs.** Three generated copies (README, `docs/workflow-authoring.md`, `skills/.../capabilities.md`) must stay in sync.
 4. **Stable facts go in the contract, detailed guidance goes in the skill.** The always-on workflow prompt is ~742 bytes by design — keep it minimal.
 5. **Fake-agent unit tests are necessary but not sufficient for runtime changes.** Any change to retries, timeouts, model routing, token accounting, concurrency, or resume must be verified end-to-end against a real Pi subagent session.
-6. **The `dist/` directory IS tracked in git** (fork-specific). After any source change, run `npm run build` and commit the updated dist.
+6. **`dist/` is NOT tracked in git.** jiti compiles TypeScript on-the-fly for git-installed extensions — pre-built output is unnecessary. Run `npm run build` only when preparing an npm publish.
 7. **The shared `DefaultResourceLoader`** in `agent.ts` is the #109 memory mitigation — one loader per run, not per subagent. Do not regress this to per-agent loading.
 
 ## Key file paths
@@ -257,4 +256,3 @@ Some files under `skills/workflow-authoring/` are "guidance-frozen" — their SH
 7. Update README.md (the agent options table or the settings paragraph)
 8. Optionally: add to the capability contract (`src/workflow-capability-contract.ts`) for auto-generated doc coverage
 9. Add tests
-10. Run `npm run build` and commit updated dist/
