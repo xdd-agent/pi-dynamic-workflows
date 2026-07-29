@@ -566,6 +566,8 @@ export class WorkflowAgent {
     if (!this.sharedResourceLoaderPromise) {
       this.sharedResourceLoaderPromise = (async () => {
         const filterExts = this.allowedExtensions !== undefined;
+        const fs = await import("node:fs");
+        fs.appendFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "loader-start", filterExts, allowedExtensions: this.allowedExtensions }) + "\n");
         const loader = new DefaultResourceLoader({
           cwd: this.cwd,
           agentDir,
@@ -573,6 +575,7 @@ export class WorkflowAgent {
           noExtensions: filterExts ? false : true,
           extensionsOverride: filterExts
             ? (result) => {
+                fs.appendFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "override-before", extCount: result.extensions.length, paths: result.extensions.map((e: any) => e.resolvedPath) }) + "\n");
                 const allowSet = new Set(this.allowedExtensions!);
                 result.extensions = result.extensions.filter((ext) => {
                   // Extract a useful basename from the resolved path:
@@ -583,8 +586,11 @@ export class WorkflowAgent {
                   const dirPart = parts[parts.length - 2] ?? "";
                   const isEntryFile = /^index\.(ts|js|mjs|cjs)$/.test(filePart);
                   const basename = isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
-                  return allowSet.has(basename);
+                  const match = allowSet.has(basename);
+                  fs.appendFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "filter", resolvedPath: ext.resolvedPath, basename, match }) + "\n");
+                  return match;
                 });
+                fs.appendFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "override-after", kept: result.extensions.length }) + "\n");
                 return result;
               }
             : undefined,
