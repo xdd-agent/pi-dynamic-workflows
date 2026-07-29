@@ -70,7 +70,8 @@ export function registerWorkflowModelsCommand(pi: ExtensionAPI): void {
         menuOptions.push("─".repeat(30));
         for (const name of tiers) {
           const model = config.tiers[name];
-          menuOptions.push(`${name} tier → ${model}`);
+          const display = Array.isArray(model) ? model.join(", ") : model;
+          menuOptions.push(`${name} tier → ${display}`);
         }
         menuOptions.push("─".repeat(30));
 
@@ -124,7 +125,7 @@ function fromThinkingChoice(choice: string | undefined): ModelThinkingLevel | un
 
 /**
  * Interactive editor for a single tier — scrollable model picker plus optional
- * thinking-level picker.
+ * thinking-level picker, with support for multiple fallback models per tier.
  *
  * Uses `ctx.ui.custom()` with Pi TUI's `SelectList` for proper scrollable list
  * with limited visible rows (like `/advisor`). The currently selected base
@@ -135,12 +136,15 @@ function fromThinkingChoice(choice: string | undefined): ModelThinkingLevel | un
  */
 export async function editSingleTier(
   ctx: ExtensionCommandContext,
-  tiers: Record<string, string>,
+  tiers: Record<string, string | string[]>,
   tierName: string,
-): Promise<Record<string, string> | null> {
+): Promise<Record<string, string | string[]> | null> {
   const available = listAvailableModelSpecs(ctx.modelRegistry);
   const knownSpecs = available.length > 0 ? available : undefined;
-  const current = tiers[tierName];
+  const rawValue = tiers[tierName];
+  // Normalize to an array of spec strings for editing.
+  const currentList: string[] = typeof rawValue === "string" ? [rawValue] : Array.isArray(rawValue) ? rawValue : [];
+  const current = currentList[0];
   const currentParts = splitModelSpecThinking(current, knownSpecs);
 
   // Build SelectItems: all available models as scrollable list
@@ -203,9 +207,13 @@ export async function editSingleTier(
   if (!thinkingChoice) return null;
 
   const thinkingLevel = fromThinkingChoice(thinkingChoice);
-  const result = formatModelSpecWithThinking(selectedModel, thinkingLevel);
-  if (result === current) return null;
+  const newPrimary = formatModelSpecWithThinking(selectedModel, thinkingLevel);
+  // Build the new value: a single string if there's only one entry, otherwise an array.
+  const newList = [newPrimary, ...currentList.slice(1)];
+  const newValue: string | string[] = newList.length === 1 ? newList[0] : newList;
+  if (JSON.stringify(newValue) === JSON.stringify(rawValue)) return null;
 
-  ctx.ui.notify(`"${tierName}" tier → ${result}`, "info");
-  return { ...tiers, [tierName]: result };
+  const display = Array.isArray(newValue) ? newValue.join(", ") : newValue;
+  ctx.ui.notify(`"${tierName}" tier → ${display}`, "info");
+  return { ...tiers, [tierName]: newValue };
 }

@@ -1,11 +1,13 @@
 /**
  * Model tier configuration for workflow subagent model routing.
  *
- * A tier is a named slot (small/medium/big) holding exactly ONE model spec
- * string (e.g. "openai/gpt-4.1-mini" or "openai-codex/gpt-5.5:xhigh").
- * When an agent() call specifies opts.tier, that single model is resolved with
- * Pi CLI-style parsing and used as the subagent's model/thinking level (unless
- * an explicit opts.model is given, which always wins — see agent.ts).
+ * A tier is a named slot (small/medium/big) holding a model spec string
+ * (e.g. "openai/gpt-4.1-mini" or "openai-codex/gpt-5.5:xhigh") or an ordered
+ * fallback list of spec strings. When an agent() call specifies opts.tier, the
+ * first available model in the list is resolved with Pi CLI-style parsing and
+ * used as the subagent's model/thinking level (unless an explicit opts.model is
+ * given, which always wins — see agent.ts). At runtime, if a model hits a
+ * provider usage limit, the next model in the fallback list is tried.
  *
  * This augments the phase-pattern routing in model-routing.ts: phase routing
  * maps workflow phases → models via the script's meta; tiers give scripts a
@@ -26,10 +28,10 @@ import { MODEL_TIERS_FILE } from "./config.js";
 /**
  * Model tier configuration. Maps tier names (e.g. "small", "medium", "big")
  * to a single model spec string (e.g. "gpt-4.1-mini", "openai/gpt-4.1-mini",
- * or "openai-codex/gpt-5.5:xhigh").
+ * or "openai-codex/gpt-5.5:xhigh") or an ordered fallback list of spec strings.
  */
 export interface ModelTierConfig {
-  tiers: Record<string, string>;
+  tiers: Record<string, string | string[]>;
 }
 
 /**
@@ -223,17 +225,21 @@ export function formatTierFallbackNotice(
 
 /**
  * True iff `value` is a usable tiers map: a plain (non-array) object with at
- * least one entry, every key and value a non-empty string. Anything else
- * (an array, `{}`, or a tier mapped to `""`) is treated as absent rather than
- * a truthy-but-broken config — resolveTierModel would silently resolve such
- * entries to `undefined`/`""` while the caller's "no model-tiers.json
- * configured" warning only fires on an exactly-null config.
+ * least one entry, every key a non-empty string, and every value either a
+ * non-empty string or a non-empty array of non-empty strings. Anything else
+ * (an array, `{}`, a tier mapped to `""`, an empty array, or an array containing
+ * `""`) is treated as absent rather than a truthy-but-broken config.
  */
-function isValidTiersMap(value: unknown): value is Record<string, string> {
+function isValidTiersMap(value: unknown): value is Record<string, string | string[]> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const entries = Object.entries(value as Record<string, unknown>);
   if (entries.length === 0) return false;
-  return entries.every(([key, val]) => key.trim().length > 0 && typeof val === "string" && val.trim().length > 0);
+  return entries.every(([key, val]) => {
+    if (key.trim().length === 0) return false;
+    if (typeof val === "string") return val.trim().length > 0;
+    if (Array.isArray(val)) return val.length > 0 && val.every((v) => typeof v === "string" && v.trim().length > 0);
+    return false;
+  });
 }
 
 /**
@@ -265,7 +271,7 @@ export function loadModelTierConfig(configPath?: string): ModelTierConfig | null
 export function saveModelTierConfig(config: ModelTierConfig, configPath?: string): void {
   if (!isValidTiersMap(config?.tiers)) {
     throw new Error(
-      "Refusing to save a degenerate model tier config: tiers must be a non-empty map of tier name to a non-empty model spec string.",
+      "Refusing to save a degenerate model tier config: tiers must be a non-empty map of tier name to a non-empty model spec string or non-empty array of model spec strings.",
     );
   }
   const path = configPath ?? getModelTierConfigPath();
@@ -281,11 +287,25 @@ export function saveModelTierConfig(config: ModelTierConfig, configPath?: string
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a tier name to its configured model spec, or undefined if the tier
- * is not configured.
+ * Resolve a tier name to its configured model spec(s) as an ordered array.
+ * Normalizes single-string values to `[string]`, arrays to themselves,
+ * and missing tiers to `[]`.
+ */
+export function resolveTierModels(tier: string, config: ModelTierConfig): string[] {
+  const value = config.tiers[tier];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value;
+  return [];
+}
+
+/**
+ * Resolve a tier name to its primary (first) configured model spec, or
+ * undefined if the tier is not configured. Backward-compatible entry point
+ * for callers that only need one model.
  */
 export function resolveTierModel(tier: string, config: ModelTierConfig): string | undefined {
-  return config.tiers[tier];
+  const models = resolveTierModels(tier, config);
+  return models[0];
 }
 
 /** Return all tier names sorted: small < medium < big, then alphabetically. */

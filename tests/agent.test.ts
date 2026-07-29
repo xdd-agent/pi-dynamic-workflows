@@ -127,45 +127,45 @@ const noCfg = () => null;
 
 test("resolveAgentModelSpec: explicit model wins over tier (the precedence bug fix)", () => {
   // Even with a tier set AND a config that resolves it, an explicit model wins.
-  assert.equal(
+  assert.deepEqual(
     resolveAgentModelSpec({ model: "explicit/model", tier: "small" }, "main/model", loadCfg),
-    "explicit/model",
+    ["explicit/model"],
   );
 });
 
 test("resolveAgentModelSpec: explicit model wins even when no config exists", () => {
-  assert.equal(
+  assert.deepEqual(
     resolveAgentModelSpec({ model: "explicit/model", tier: "small" }, "main/model", noCfg),
-    "explicit/model",
+    ["explicit/model"],
   );
 });
 
 test("resolveAgentModelSpec: tier resolves from config when no explicit model", () => {
-  assert.equal(resolveAgentModelSpec({ tier: "big" }, "main/model", loadCfg), "vendor/big");
+  assert.deepEqual(resolveAgentModelSpec({ tier: "big" }, "main/model", loadCfg), ["vendor/big"]);
 });
 
 test("resolveAgentModelSpec: unconfigured tier falls back to the main model", () => {
-  assert.equal(resolveAgentModelSpec({ tier: "small" }, "main/model", noCfg), "main/model");
-  assert.equal(resolveAgentModelSpec({ tier: "unknown-tier" }, "main/model", loadCfg), "main/model");
+  assert.deepEqual(resolveAgentModelSpec({ tier: "small" }, "main/model", noCfg), ["main/model"]);
+  assert.deepEqual(resolveAgentModelSpec({ tier: "unknown-tier" }, "main/model", loadCfg), []);
 });
 
 test("resolveAgentModelSpec: untagged agent defaults to the configured medium tier", () => {
   // The "set tier but nothing changed" fix: an agent with no model and no tier
   // falls back to the user's medium tier when a config exists.
-  assert.equal(resolveAgentModelSpec({}, "main/model", loadCfg), "vendor/medium");
+  assert.deepEqual(resolveAgentModelSpec({}, "main/model", loadCfg), ["vendor/medium"]);
 });
 
 test("resolveAgentModelSpec: untagged agent with NO config falls through to session default", () => {
-  assert.equal(resolveAgentModelSpec({}, "main/model", noCfg), undefined);
+  assert.deepEqual(resolveAgentModelSpec({}, "main/model", noCfg), []);
 });
 
 test("resolveAgentModelSpec: untagged agent with a config lacking a medium tier => session default", () => {
   const noMedium = () => ({ tiers: { small: "vendor/small" } });
-  assert.equal(resolveAgentModelSpec({}, "main/model", noMedium), undefined);
+  assert.deepEqual(resolveAgentModelSpec({}, "main/model", noMedium), []);
 });
 
-test("resolveAgentModelSpec: tier with no main model and no config yields undefined", () => {
-  assert.equal(resolveAgentModelSpec({ tier: "small" }, undefined, noCfg), undefined);
+test("resolveAgentModelSpec: tier with no main model and no config yields empty array", () => {
+  assert.deepEqual(resolveAgentModelSpec({ tier: "small" }, undefined, noCfg), []);
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

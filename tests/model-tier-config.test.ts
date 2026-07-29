@@ -10,7 +10,8 @@
  * 6. save/load round-trip + all validation/error paths (scoped to a temp dir)
  * 7. sortedTierNames helper
  *
- * All tier configs are single-model-per-tier (Record<string, string>).
+ * All tier configs support either a single model spec string or a non-empty
+ * array of model spec strings (ordered fallback list).
  */
 
 import assert from "node:assert/strict";
@@ -440,12 +441,13 @@ describe("model-tier-config", () => {
       rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it("returns null when a tier value is not a string", async () => {
+    it("accepts a config where a tier value is a non-empty array of strings", async () => {
       const { loadModelTierConfig } = await loadModule();
       const tmpDir = mkdtempSync(join(tmpdir(), "mtc-test-"));
       const cfgPath = join(tmpDir, "model-tiers.json");
       writeFileSync(cfgPath, '{"tiers": {"small": ["gpt-4.1-mini"]}}', "utf-8");
-      assert.equal(loadModelTierConfig(cfgPath), null, "array values should be rejected");
+      const result = loadModelTierConfig(cfgPath);
+      assert.deepEqual(result?.tiers.small, ["gpt-4.1-mini"], "array values should be accepted");
       rmSync(tmpDir, { recursive: true, force: true });
     });
 
