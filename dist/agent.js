@@ -584,6 +584,7 @@ export class WorkflowAgent {
             // the caller set on sessionOptions rather than dropping it.
             excludeTools: subagentExcludedTools(this.excludeTools, this.sessionOptions.excludeTools),
         });
+        writeFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "session-active-tools", tools: session.getActiveToolNames?.() ?? "no getActiveToolNames" }) + "\n", { flag: "a" });
         // Name the persisted session so it's identifiable in session pickers.
         // Skip when an injected session.sessionManager override won (tests/embedders).
         if (this.persistAgentSessions && !this.sessionOptions.sessionManager && options.sessionName) {
