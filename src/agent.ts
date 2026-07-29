@@ -589,21 +589,15 @@ export class WorkflowAgent {
             ? (result) => {
                 const allowSet = new Set(this.allowedExtensions!);
                 result.extensions = result.extensions.filter((ext) => {
-                  // Current basename logic:
-                  const parts = ext.resolvedPath.split(/[/\\]/);
-                  const filePart = parts[parts.length - 1] ?? "";
-                  const dirPart = parts[parts.length - 2] ?? "";
-                  const isEntryFile = /^index\.(ts|js|mjs|cjs)$/.test(filePart);
-                  const currentBasename = isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
-                  // New package.json walk-up logic:
-                  const pkgBasename = WorkflowAgent.resolveExtensionName(ext.resolvedPath);
-                  require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-paths.log', JSON.stringify({
-                    currentBasename,
-                    pkgBasename,
-                    match: currentBasename === pkgBasename,
-                    resolvedPath: ext.resolvedPath,
-                  }) + '\n');
-                  return allowSet.has(currentBasename);
+                  const basename = WorkflowAgent.resolveExtensionName(ext.resolvedPath)
+                    ?? (() => {
+                      const parts = ext.resolvedPath.split(/[/\\]/);
+                      const filePart = parts[parts.length - 1] ?? "";
+                      const dirPart = parts[parts.length - 2] ?? "";
+                      const isEntryFile = /^index\.(ts|js|mjs|cjs)$/.test(filePart);
+                      return isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
+                    })();
+                  return allowSet.has(basename);
                 });
                 return result;
               }
