@@ -564,10 +564,11 @@ export class WorkflowAgent {
    */
   private static resolveExtensionName(resolvedPath: string): string | null {
     let dir = dirname(resolvedPath);
-    const root = dirname(dir); // stop at filesystem root
-    while (dir !== root && dir !== dirname(dir)) {
+    while (true) {
       if (existsSync(join(dir, "package.json"))) return dir.split(/[/\\]/).pop() ?? null;
-      dir = dirname(dir);
+      const parent = dirname(dir);
+      if (parent === dir) break; // reached filesystem root
+      dir = parent;
     }
     return null;
   }
