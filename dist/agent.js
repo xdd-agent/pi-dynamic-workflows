@@ -373,7 +373,6 @@ export class WorkflowAgent {
         if (!this.sharedResourceLoaderPromise) {
             this.sharedResourceLoaderPromise = (async () => {
                 const filterExts = this.allowedExtensions !== undefined;
-                writeFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "loader-start", filterExts, allowedExtensions: this.allowedExtensions }) + "\n", { flag: "a" });
                 const loader = new DefaultResourceLoader({
                     cwd: this.cwd,
                     agentDir,
@@ -381,7 +380,6 @@ export class WorkflowAgent {
                     noExtensions: filterExts ? false : true,
                     extensionsOverride: filterExts
                         ? (result) => {
-                            writeFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "override-before", extCount: result.extensions.length, paths: result.extensions.map((e) => e.resolvedPath) }) + "\n", { flag: "a" });
                             const allowSet = new Set(this.allowedExtensions);
                             result.extensions = result.extensions.filter((ext) => {
                                 // Extract a useful basename from the resolved path:
@@ -392,11 +390,8 @@ export class WorkflowAgent {
                                 const dirPart = parts[parts.length - 2] ?? "";
                                 const isEntryFile = /^index\.(ts|js|mjs|cjs)$/.test(filePart);
                                 const basename = isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
-                                const match = allowSet.has(basename);
-                                writeFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "filter", resolvedPath: ext.resolvedPath, basename, match }) + "\n", { flag: "a" });
-                                return match;
+                                return allowSet.has(basename);
                             });
-                            writeFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "override-after", kept: result.extensions.length }) + "\n", { flag: "a" });
                             return result;
                         }
                         : undefined,
@@ -584,7 +579,6 @@ export class WorkflowAgent {
             // the caller set on sessionOptions rather than dropping it.
             excludeTools: subagentExcludedTools(this.excludeTools, this.sessionOptions.excludeTools),
         });
-        writeFileSync("C:/Users/Dien/.pi/workflows/ext-dbg2.log", JSON.stringify({ ts: new Date().toISOString(), step: "session-active-tools", tools: session.getActiveToolNames?.() ?? "no getActiveToolNames" }) + "\n", { flag: "a" });
         // Name the persisted session so it's identifiable in session pickers.
         // Skip when an injected session.sessionManager override won (tests/embedders).
         if (this.persistAgentSessions && !this.sessionOptions.sessionManager && options.sessionName) {
