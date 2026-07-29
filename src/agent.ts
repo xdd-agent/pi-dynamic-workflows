@@ -542,6 +542,7 @@ export class WorkflowAgent {
     this.instructions = options.instructions;
     this.mainModel = options.mainModel;
     this.sharedRegistry = options.modelRegistry;
+    this.allowedExtensions = options.allowedExtensions;
   }
 
   /**
