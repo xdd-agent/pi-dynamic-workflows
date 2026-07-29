@@ -73,6 +73,9 @@ const workflowToolSchema = Type.Object({
             "Calls match by position: keep earlier good calls identical and in order. Always background.",
         ].join(" "),
     })),
+    allowedExtensions: Type.Optional(Type.Array(Type.String(), {
+        description: "Host extensions to load into subagent sessions, by directory basename (e.g. [\"fetch-full\", \"pi-session-context\"]). Omit to load no extensions (default). An empty array also loads no extensions. Saved/built-in workflows supply their own allowlist; this field overrides it for the script path.",
+    })),
 });
 export function createWorkflowTool(options = {}) {
     const storage = options.storage ?? createWorkflowStorage(options.cwd ?? process.cwd());
@@ -122,12 +125,12 @@ export function createWorkflowTool(options = {}) {
                 invocationTools = resolved.tools;
                 invocationToolset = resolved.toolset;
                 invocationAllowedExtensions = resolved.allowedExtensions;
-                console.error('[ext-debug] workflow-tool resolved.allowedExtensions:', JSON.stringify(resolved.allowedExtensions));
             }
             else {
                 if (!params.script)
                     throw new Error("workflow requires either `script` or `name`");
                 script = normalizeWorkflowScript(params.script);
+                invocationAllowedExtensions = params.allowedExtensions;
             }
             const parsed = parseWorkflowScript(script);
             // Iteration / cached-prefix reuse: resume a prior run with THIS (edited)

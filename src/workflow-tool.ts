@@ -112,6 +112,12 @@ const workflowToolSchema = Type.Object({
       ].join(" "),
     }),
   ),
+  allowedExtensions: Type.Optional(
+    Type.Array(Type.String(), {
+      description:
+        "Host extensions to load into subagent sessions, by directory basename (e.g. [\"fetch-full\", \"pi-session-context\"]). Omit to load no extensions (default). An empty array also loads no extensions. Saved/built-in workflows supply their own allowlist; this field overrides it for the script path.",
+    }),
+  ),
 });
 
 export type WorkflowToolInput = {
@@ -125,6 +131,7 @@ export type WorkflowToolInput = {
   agentTimeoutMs?: number;
   tokenBudget?: number;
   resumeFromRunId?: string;
+  allowedExtensions?: string[];
 };
 
 export interface WorkflowToolOptions {
@@ -198,10 +205,10 @@ export function createWorkflowTool(options: WorkflowToolOptions = {}): ToolDefin
         invocationTools = resolved.tools;
         invocationToolset = resolved.toolset;
         invocationAllowedExtensions = resolved.allowedExtensions;
-        console.error('[ext-debug] workflow-tool resolved.allowedExtensions:', JSON.stringify(resolved.allowedExtensions));
       } else {
         if (!params.script) throw new Error("workflow requires either `script` or `name`");
         script = normalizeWorkflowScript(params.script);
+        invocationAllowedExtensions = params.allowedExtensions;
       }
       const parsed = parseWorkflowScript(script);
 

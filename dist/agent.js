@@ -351,7 +351,6 @@ export class WorkflowAgent {
         this.mainModel = options.mainModel;
         this.sharedRegistry = options.modelRegistry;
         this.allowedExtensions = options.allowedExtensions;
-        console.error('[ext-debug] WorkflowAgent ctor allowedExtensions:', JSON.stringify(this.allowedExtensions));
     }
     /**
      * A resource loader shared by every subagent of this run, built once (#109).
@@ -374,7 +373,6 @@ export class WorkflowAgent {
         if (!this.sharedResourceLoaderPromise) {
             this.sharedResourceLoaderPromise = (async () => {
                 const filterExts = this.allowedExtensions !== undefined;
-                console.error('[ext-debug] getSharedResourceLoader filterExts:', filterExts, 'allowedExtensions:', JSON.stringify(this.allowedExtensions));
                 const loader = new DefaultResourceLoader({
                     cwd: this.cwd,
                     agentDir,
@@ -384,7 +382,14 @@ export class WorkflowAgent {
                         ? (result) => {
                             const allowSet = new Set(this.allowedExtensions);
                             result.extensions = result.extensions.filter((ext) => {
-                                const basename = (ext.resolvedPath.split(/[/\\]/).pop() ?? "").replace(/\.(ts|js|mjs|cjs)$/, "");
+                                // Extract a useful basename from the resolved path:
+                                //  - Directory-based extensions (e.g. .../fetch-full/index.ts) → dirname ("fetch-full")
+                                //  - Single-file extensions (e.g. .../credential-guard.ts)   → filename without ext ("credential-guard")
+                                const parts = ext.resolvedPath.split(/[/\\]/);
+                                const filePart = parts[parts.length - 1] ?? "";
+                                const dirPart = parts[parts.length - 2] ?? "";
+                                const isEntryFile = /^index\.(ts|js|mjs|cjs)$/.test(filePart);
+                                const basename = isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
                                 return allowSet.has(basename);
                             });
                             return result;

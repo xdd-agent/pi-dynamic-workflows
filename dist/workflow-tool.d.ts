@@ -15,6 +15,7 @@ declare const workflowToolSchema: Type.TObject<{
     agentTimeoutMs: Type.TOptional<Type.TNumber>;
     tokenBudget: Type.TOptional<Type.TNumber>;
     resumeFromRunId: Type.TOptional<Type.TString>;
+    allowedExtensions: Type.TOptional<Type.TArray<Type.TString>>;
 }>;
 export type WorkflowToolInput = {
     script?: string;
@@ -27,6 +28,7 @@ export type WorkflowToolInput = {
     agentTimeoutMs?: number;
     tokenBudget?: number;
     resumeFromRunId?: string;
+    allowedExtensions?: string[];
 };
 export interface WorkflowToolOptions {
     cwd?: string;
