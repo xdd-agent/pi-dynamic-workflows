@@ -351,7 +351,7 @@ export class WorkflowAgent {
         this.mainModel = options.mainModel;
         this.sharedRegistry = options.modelRegistry;
         this.allowedExtensions = options.allowedExtensions;
-        void (require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-debug.log', JSON.stringify({ step: 'ctor', allowedExtensions: this.allowedExtensions, time: new Date().toISOString() }) + '\n'));
+        console.error('[ext-debug] WorkflowAgent ctor allowedExtensions:', JSON.stringify(this.allowedExtensions));
     }
     /**
      * A resource loader shared by every subagent of this run, built once (#109).
@@ -374,7 +374,7 @@ export class WorkflowAgent {
         if (!this.sharedResourceLoaderPromise) {
             this.sharedResourceLoaderPromise = (async () => {
                 const filterExts = this.allowedExtensions !== undefined;
-                void (require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-debug.log', JSON.stringify({ step: 'getSharedResourceLoader', filterExts: filterExts, allowedExtensions: this.allowedExtensions, time: new Date().toISOString() }) + '\n'));
+                console.error('[ext-debug] getSharedResourceLoader filterExts:', filterExts, 'allowedExtensions:', JSON.stringify(this.allowedExtensions));
                 const loader = new DefaultResourceLoader({
                     cwd: this.cwd,
                     agentDir,

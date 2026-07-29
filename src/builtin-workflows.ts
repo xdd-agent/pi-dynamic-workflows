@@ -150,7 +150,10 @@ export function resolveWorkflowInvocation(
   ctx: { storage: WorkflowStorage; cwd: string },
 ): BuiltinWorkflowInvocation | undefined {
   const saved = ctx.storage.load(name);
-  if (saved) return { script: saved.script, allowedExtensions: saved.allowedExtensions };
+  if (saved) {
+    console.error('[ext-debug] resolveWorkflowInvocation saved allowedExtensions:', JSON.stringify(saved.allowedExtensions));
+    return { script: saved.script, allowedExtensions: saved.allowedExtensions };
+  }
   const builtin = findBuiltinWorkflow(name);
   if (builtin) return builtin.resolve(ctx.cwd, args);
   return undefined;

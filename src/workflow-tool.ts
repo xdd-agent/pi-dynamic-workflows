@@ -198,6 +198,7 @@ export function createWorkflowTool(options: WorkflowToolOptions = {}): ToolDefin
         invocationTools = resolved.tools;
         invocationToolset = resolved.toolset;
         invocationAllowedExtensions = resolved.allowedExtensions;
+        console.error('[ext-debug] workflow-tool resolved.allowedExtensions:', JSON.stringify(resolved.allowedExtensions));
       } else {
         if (!params.script) throw new Error("workflow requires either `script` or `name`");
         script = normalizeWorkflowScript(params.script);

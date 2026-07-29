@@ -122,6 +122,7 @@ export function createWorkflowTool(options = {}) {
                 invocationTools = resolved.tools;
                 invocationToolset = resolved.toolset;
                 invocationAllowedExtensions = resolved.allowedExtensions;
+                console.error('[ext-debug] workflow-tool resolved.allowedExtensions:', JSON.stringify(resolved.allowedExtensions));
             }
             else {
                 if (!params.script)
