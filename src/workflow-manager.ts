@@ -61,6 +61,10 @@ export interface ManagedRun {
    */
   toolset?: string;
   /**
+   * Per-run extension allowlist, frozen at start for resume consistency.
+   */
+  allowedExtensions?: string[];
+  /**
    * Real per-agent start/end timestamps, captured at onAgentStart/onAgentEnd
    * (never fabricated), keyed by the agent's snapshot id. A running agent has
    * an entry with no endedAt; persistRun() reads from here instead of stamping
@@ -155,6 +159,12 @@ export interface ExecOptions {
    */
   autoResume?: boolean;
   /**
+   * Per-run extension allowlist. When set, only host extensions whose directory
+   * basename appears in this list are loaded into subagent sessions. Omitted or
+   * undefined = no extensions (current behavior, backward compatible).
+   */
+  allowedExtensions?: string[];
+  /**
    * Seed for the execution's cumulative token counters — passed through to
    * runWorkflow's WorkflowRunOptions.initialTokenUsage. Only resume() sets
    * this (from the persisted run's tokenUsage-at-pause), so the resumed
@@ -221,6 +231,11 @@ export interface WorkflowManagerOptions {
    * to observe eviction without creating dozens of runs.
    */
   maxTerminalRunsInMemory?: number;
+  /**
+   * Default per-run extension allowlist when a run doesn't provide its own
+   * `ExecOptions.allowedExtensions`. Omitted = no extensions.
+   */
+  allowedExtensions?: string[];
 }
 
 /** Options that a fresh extension generation may safely refresh on a live
@@ -236,6 +251,7 @@ export type WorkflowManagerReloadOptions = Pick<
   | "toolsets"
   | "excludeSubagentTools"
   | "persistAgentSessions"
+  | "allowedExtensions"
 >;
 
 /**
@@ -330,6 +346,7 @@ export class WorkflowManager extends EventEmitter {
   private toolsets?: Record<string, () => ToolDefinition[]>;
   private excludeSubagentTools?: string[];
   private persistAgentSessions: boolean;
+  private allowedExtensions?: string[];
 
   constructor(options: WorkflowManagerOptions = {}) {
     super();
@@ -346,6 +363,7 @@ export class WorkflowManager extends EventEmitter {
     this.toolsets = options.toolsets;
     this.excludeSubagentTools = options.excludeSubagentTools;
     this.persistAgentSessions = options.persistAgentSessions ?? false;
+    this.allowedExtensions = options.allowedExtensions;
     this.maxTerminalRunsInMemory = options.maxTerminalRunsInMemory ?? DEFAULT_MAX_TERMINAL_RUNS_IN_MEMORY;
     this.persistence = createRunPersistence(this.cwd);
     this.recoverStaleRuns();
@@ -396,6 +414,7 @@ export class WorkflowManager extends EventEmitter {
     this.toolsets = options.toolsets;
     this.excludeSubagentTools = options.excludeSubagentTools;
     this.persistAgentSessions = options.persistAgentSessions ?? false;
+    this.allowedExtensions = options.allowedExtensions;
   }
 
   /** Set the session's main model (provider/id). Used to auto-tier explore agents. */
@@ -464,6 +483,7 @@ export class WorkflowManager extends EventEmitter {
       // ManagedRun.tokenBudget) so resume keeps start-time semantics.
       tokenBudget: exec.tokenBudget !== undefined ? exec.tokenBudget : this.defaultTokenBudget,
       toolset: exec.toolset,
+      allowedExtensions: exec.allowedExtensions ?? this.allowedExtensions,
       // Same freeze-at-start pattern as tokenBudget, for the same reason: a
       // resumed run must keep these values, not re-resolve against the
       // manager's current defaults (see ManagedRun doc comments).
@@ -494,6 +514,7 @@ export class WorkflowManager extends EventEmitter {
         autoResume: managed.autoResume,
         tokenBudget: managed.tokenBudget,
         toolset: managed.toolset,
+        allowedExtensions: managed.allowedExtensions,
         maxAgents: managed.maxAgents,
         agentTimeoutMs: managed.agentTimeoutMs,
         concurrency: managed.concurrency,
@@ -530,6 +551,7 @@ export class WorkflowManager extends EventEmitter {
     managed.autoResume = exec.autoResume;
     managed.tokenBudget = exec.tokenBudget !== undefined ? exec.tokenBudget : this.defaultTokenBudget;
     managed.toolset = exec.toolset;
+    managed.allowedExtensions = exec.allowedExtensions ?? this.allowedExtensions;
     // Same freeze-at-start pattern as tokenBudget (see startInBackground/ManagedRun).
     managed.maxAgents = exec.maxAgents;
     managed.agentTimeoutMs = exec.agentTimeoutMs !== undefined ? exec.agentTimeoutMs : this.defaultAgentTimeoutMs;
@@ -657,6 +679,7 @@ export class WorkflowManager extends EventEmitter {
         tokenBudget: resolvedTokenBudget,
         tools: resolvedTools,
         excludeTools: this.excludeSubagentTools,
+        allowedExtensions: managed.allowedExtensions,
         confirm,
         loadSavedWorkflow: this.loadSavedWorkflow,
         resumeJournal,
@@ -1059,6 +1082,7 @@ export class WorkflowManager extends EventEmitter {
         // Start-time execution context, re-read by resume() (see ManagedRun).
         tokenBudget: managed.tokenBudget,
         toolset: managed.toolset,
+        allowedExtensions: managed.allowedExtensions,
         maxAgents: managed.maxAgents,
         agentTimeoutMs: managed.agentTimeoutMs,
         concurrency: managed.concurrency,
@@ -1206,6 +1230,7 @@ export class WorkflowManager extends EventEmitter {
       // re-resolves so e.g. a resumed /deep-research keeps its web tools.
       tokenBudget: persisted.tokenBudget !== undefined ? persisted.tokenBudget : null,
       toolset: persisted.toolset,
+      allowedExtensions: persisted.allowedExtensions,
       // Restore the same start-time execution context for the other four
       // per-run knobs (see ManagedRun doc comments) — same rationale as
       // tokenBudget: never re-resolve against the manager's CURRENT defaults.

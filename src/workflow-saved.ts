@@ -29,6 +29,8 @@ export interface SavedWorkflow {
   path: string;
   /** When it was saved. */
   savedAt: string;
+  /** Per-run extension allowlist (WorkflowAgentOptions.allowedExtensions). */
+  allowedExtensions?: string[];
 }
 
 export interface WorkflowStorage {

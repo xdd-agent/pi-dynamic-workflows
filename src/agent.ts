@@ -239,6 +239,14 @@ export interface WorkflowAgentOptions {
    * Default: false (current behavior).
    */
   persistAgentSessions?: boolean;
+  /**
+   * When set, only host extensions whose directory basename appears in this list
+   * are loaded into subagent sessions. `undefined` = no extensions (current
+   * behavior, equivalent to `noExtensions: true`). `[]` = no extensions.
+   * `["rpiv-web-tools"]` = only that extension. Skills, prompts, and AGENTS.md
+   * context still load regardless.
+   */
+  allowedExtensions?: string[];
 }
 
 // pi >= 0.80.8: ModelRegistry is a sync facade over an async-created ModelRuntime
@@ -522,6 +530,8 @@ export class WorkflowAgent {
    * getSharedResourceLoader — this is the #109 memory mitigation.
    */
   private sharedResourceLoaderPromise?: Promise<DefaultResourceLoader>;
+  /** Per-run extension allowlist (see WorkflowAgentOptions.allowedExtensions). */
+  private readonly allowedExtensions?: string[];
 
   constructor(options: WorkflowAgentOptions = {}) {
     this.cwd = options.cwd ?? process.cwd();
@@ -545,28 +555,31 @@ export class WorkflowAgent {
    * run the cleanup — the dominant #109 leak, and one our own extension
    * (UsageLimitScheduler) can trigger.
    *
-   * `noExtensions: true` skips loading host extensions; skills, prompts, and
-   * AGENTS.md context still load. The subagent keeps the tools this workflow
-   * hands it via `customTools` (coding tools + any toolset like web-research) —
-   * those are unaffected. What it loses is HOST EXTENSION-REGISTERED tools (MCP
-   * bridges, browser tools, anything a host extension added via ctx.registerTool):
-   * pre-change a subagent session inherited those from the full host extension
-   * set, now it does not, so an agentType `tools` allowlist naming one matches
-   * nothing. This is a deliberate trade-off — it also structurally kills recursive
-   * orchestration in subagents (no extension runtime at all), beyond the name-level
-   * #107 denylist — and must be release-noted. `createAgentSession` with a shared
-   * resourceLoader is a supported embedding pattern. runWorkflow builds one
-   * WorkflowAgent per run, so this loader's lifetime is exactly one run: built
-   * once, reused by all its subagents, then dropped with the agent.
+   * `noExtensions` gates extension loading. When `allowedExtensions` is set,
+   * extensions are loaded then filtered by directory basename via
+   * `extensionsOverride`, so only the listed extensions are available.
+   * When `allowedExtensions` is undefined (default), `noExtensions: true` skips
+   * all host extensions (current behavior, backward compatible).
    */
   private getSharedResourceLoader(agentDir: string): Promise<DefaultResourceLoader> {
     if (!this.sharedResourceLoaderPromise) {
       this.sharedResourceLoaderPromise = (async () => {
+        const filterExts = this.allowedExtensions !== undefined;
         const loader = new DefaultResourceLoader({
           cwd: this.cwd,
           agentDir,
           settingsManager: SettingsManager.create(this.cwd, agentDir),
-          noExtensions: true,
+          noExtensions: filterExts ? false : true,
+          extensionsOverride: filterExts
+            ? (result) => {
+                const allowSet = new Set(this.allowedExtensions!);
+                result.extensions = result.extensions.filter((ext) => {
+                  const basename = (ext.resolvedPath.split(/[/\\]/).pop() ?? "").replace(/\.(ts|js|mjs|cjs)$/, "");
+                  return allowSet.has(basename);
+                });
+                return result;
+              }
+            : undefined,
         });
         await loader.reload();
         return loader;

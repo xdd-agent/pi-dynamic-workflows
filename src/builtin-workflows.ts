@@ -33,6 +33,8 @@ export interface BuiltinWorkflowInvocation {
   script: string;
   tools?: ToolDefinition[];
   toolset?: string;
+  /** Per-run extension allowlist passed to WorkflowAgent. */
+  allowedExtensions?: string[];
 }
 
 export interface BuiltinWorkflowDescriptor {
