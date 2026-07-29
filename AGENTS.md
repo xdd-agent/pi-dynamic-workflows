@@ -227,7 +227,7 @@ Some files under `skills/workflow-authoring/` are "guidance-frozen" — their SH
 3. **The capability contract is the source of truth for docs.** Three generated copies (README, `docs/workflow-authoring.md`, `skills/.../capabilities.md`) must stay in sync.
 4. **Stable facts go in the contract, detailed guidance goes in the skill.** The always-on workflow prompt is ~742 bytes by design — keep it minimal.
 5. **Fake-agent unit tests are necessary but not sufficient for runtime changes.** Any change to retries, timeouts, model routing, token accounting, concurrency, or resume must be verified end-to-end against a real Pi subagent session.
-6. **`dist/` IS tracked in git** in this fork — necessary for `pi install git:...` to work without a build step. Upstream relies on jiti for git installs but uses `@earendil-works/pi-coding-agent` at a version where this works.
+6. **`dist/` is NOT tracked in git.** jiti compiles TypeScript on-the-fly for git-installed extensions — pre-built output is unnecessary.
 7. **The shared `DefaultResourceLoader`** in `agent.ts` is the #109 memory mitigation — one loader per run, not per subagent. Do not regress this to per-agent loading.
 
 ## Key file paths
