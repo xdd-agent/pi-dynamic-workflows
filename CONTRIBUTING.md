@@ -50,6 +50,13 @@ npm run guidance:check
 npm run release:verify
 ```
 
+## Fork-specific conventions
+
+This is the [xdd-agent](https://github.com/xdd-agent/pi-dynamic-workflows) fork of [QuintinShaw/pi-dynamic-workflows](https://github.com/QuintinShaw/pi-dynamic-workflows). Some conventions differ from upstream:
+
+- **`dist/` is tracked in git.** After any source change, run `npm run build` and commit the updated `dist/` directory. This allows `git install` directly from the repo without a build step.
+- **The `allowedExtensions` feature** flows through 7 files: `workflow-tool.ts` → `workflow-manager.ts` → `agent.ts` → `run-persistence.ts` → `workflow-saved.ts` → `builtin-workflows.ts` → `workflow-capability-contract.ts` (optional). Any new parameter that affects subagent sessions should follow the same threading pattern. See AGENTS.md for the full architecture.
+
 ## Style
 
 Formatting and linting are handled by Biome (`npm run format`, `npm run lint`). Match the existing code; don't reformat files you aren't otherwise changing.

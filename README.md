@@ -3,16 +3,19 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@quintinshaw/pi-dynamic-workflows"><img src="https://img.shields.io/npm/v/@quintinshaw/pi-dynamic-workflows?color=cb3837&logo=npm" alt="npm version"></a>
+  <a href="https://github.com/xdd-agent/pi-dynamic-workflows"><img src="https://img.shields.io/badge/fork-xdd--agent-8b5cf6" alt="xdd-agent fork"></a>
+  <a href="https://www.npmjs.com/package/@quintinshaw/pi-dynamic-workflows"><img src="https://img.shields.io/npm/v/@quintinshaw/pi-dynamic-workflows?color=cb3837&logo=npm" alt="upstream npm version"></a>
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
   <a href="https://pi.dev"><img src="https://img.shields.io/badge/for-Pi-7c3aed" alt="Built for Pi"></a>
 </p>
 
 <p align="center">
-  <a href="https://quintinshaw.github.io/pi-dynamic-workflows/">Documentation</a> ·
-  <a href="https://www.npmjs.com/package/@quintinshaw/pi-dynamic-workflows">npm</a> ·
-  <a href="https://pi.dev/packages/@quintinshaw/pi-dynamic-workflows">Pi package</a>
+  <a href="https://github.com/xdd-agent/pi-dynamic-workflows">Fork repo</a> ·
+  <a href="https://github.com/QuintinShaw/pi-dynamic-workflows">Upstream</a> ·
+  <a href="https://quintinshaw.github.io/pi-dynamic-workflows/">Documentation</a>
 </p>
+
+> **Fork notice:** This is the [xdd-agent](https://github.com/xdd-agent/pi-dynamic-workflows) fork of [QuintinShaw/pi-dynamic-workflows](https://github.com/QuintinShaw/pi-dynamic-workflows) (v3.4.1 base). The fork adds per-run subagent extension allowlisting (`allowedExtensions`) so workflow callers can opt into loading specific host extensions (e.g. `fetch-full`, `pi-session-context`) into subagent sessions. The `dist/` directory is checked in so the fork can be installed directly via `git` without a build step. See [Subagent extension allowlisting](#subagent-extension-allowlisting-fork-feature) for details.
 
 Turn one request into a JavaScript orchestration script that fans work out across isolated subagents, routes each task to the right model, cross-checks the results, and returns one synthesized answer. Intermediate work stays in script variables instead of filling your chat context.
 
@@ -118,6 +121,7 @@ The installed extension generates this compact index from its executable capabil
 | agentTimeoutMs | workflow-tool-input | `agentTimeoutMs?: number = configured default or unbounded` | — |
 | tokenBudget | workflow-tool-input | `tokenBudget?: number = configured default or unlimited` | — |
 | resumeFromRunId | workflow-tool-input | `resumeFromRunId?: string` | — |
+| allowedExtensions | workflow-tool-input | `allowedExtensions?: string[]` | — |
 <!-- END GENERATED SUPPORTED WORKFLOW CAPABILITIES -->
 
 ## Built-in workflows
@@ -198,6 +202,23 @@ Agent details use a compact summary by default: completed agents show their fina
 | `timeoutMs` / `retries` | Optional per-agent timeout and recoverable-failure retries |
 
 The [full documentation](https://quintinshaw.github.io/pi-dynamic-workflows/) covers every option, structured output, determinism, saved workflows, and operational control.
+
+<details>
+<summary><strong>Subagent extension allowlisting (fork feature)</strong></summary>
+
+By default, subagents load zero host extensions (`noExtensions: true`). Set `allowedExtensions` on the `workflow` tool call to opt into loading a specific subset of host extensions into subagent sessions, by directory basename:
+
+```js
+// In the workflow tool call: allowedExtensions: ["fetch-full", "pi-session-context"]
+```
+
+This propagates through all subagents in the run and survives persist/resume cycles. Saved workflows can declare their own allowlist; the tool-call `allowedExtensions` overrides a saved workflow's own list for the script path. An empty array (`[]`) means no extensions (same as omitting it).
+
+Extension basename extraction: for directory-based extensions (e.g. `.../fetch-full/index.ts`), the directory name (`fetch-full`) is used; for single-file extensions (e.g. `.../credential-guard.ts`), the filename without extension (`credential-guard`) is used.
+
+This feature was added in the `xdd-agent` fork and is not present in upstream `@quintinshaw/pi-dynamic-workflows`.
+
+</details>
 
 <details>
 <summary><strong>Model tiers and run controls</strong></summary>
