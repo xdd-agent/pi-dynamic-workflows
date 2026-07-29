@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { AssistantMessage, Model, TextContent } from "@earendil-works/pi-ai";
 import {
   type CreateAgentSessionOptions,
@@ -562,6 +562,19 @@ export class WorkflowAgent {
    * When `allowedExtensions` is undefined (default), `noExtensions: true` skips
    * all host extensions (current behavior, backward compatible).
    */
+  private static resolveExtensionName(resolvedPath: string): string | null {
+    let dir = dirname(resolvedPath);
+    const root = dirname(dir); // stop at filesystem root
+    while (dir !== root && dir !== dirname(dir)) {
+      if (existsSync(join(dir, "package.json"))) return dir.split(/[/\\]/).pop() ?? null;
+      dir = dirname(dir);
+    }
+    return null;
+  }
+
+  /**
+   * Builds (and memoizes) the shared resource loader for this run.
+   */
   private getSharedResourceLoader(agentDir: string): Promise<DefaultResourceLoader> {
     if (!this.sharedResourceLoaderPromise) {
       this.sharedResourceLoaderPromise = (async () => {
@@ -575,22 +588,21 @@ export class WorkflowAgent {
             ? (result) => {
                 const allowSet = new Set(this.allowedExtensions!);
                 result.extensions = result.extensions.filter((ext) => {
-                  require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-paths.log', JSON.stringify({
-                    path: ext.path,
-                    resolvedPath: ext.resolvedPath,
-                    sourceInfo: ext.sourceInfo,
-                    toolNames: [...ext.tools.keys()],
-                    baseDirBasename: ext.sourceInfo?.baseDir ? ext.sourceInfo.baseDir.split(/[/\\]/).filter(Boolean).pop() : null
-                  }) + '\n');
-                  // Extract a useful basename from the resolved path:
-                  //  - Directory-based extensions (e.g. .../fetch-full/index.ts) → dirname ("fetch-full")
-                  //  - Single-file extensions (e.g. .../credential-guard.ts)   → filename without ext ("credential-guard")
+                  // Current basename logic:
                   const parts = ext.resolvedPath.split(/[/\\]/);
                   const filePart = parts[parts.length - 1] ?? "";
                   const dirPart = parts[parts.length - 2] ?? "";
                   const isEntryFile = /^index\.(ts|js|mjs|cjs)$/.test(filePart);
-                  const basename = isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
-                  return allowSet.has(basename);
+                  const currentBasename = isEntryFile ? dirPart : filePart.replace(/\.(ts|js|mjs|cjs)$/, "");
+                  // New package.json walk-up logic:
+                  const pkgBasename = WorkflowAgent.resolveExtensionName(ext.resolvedPath);
+                  require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-paths.log', JSON.stringify({
+                    currentBasename,
+                    pkgBasename,
+                    match: currentBasename === pkgBasename,
+                    resolvedPath: ext.resolvedPath,
+                  }) + '\n');
+                  return allowSet.has(currentBasename);
                 });
                 return result;
               }
