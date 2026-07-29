@@ -60,8 +60,6 @@ export default function extension(pi: ExtensionAPI) {
     : 0;
   const manager = previousRuntime?.manager ?? new WorkflowManager({ cwd, ...managerOptions });
   if (previousRuntime) manager.reconfigureAfterReload(managerOptions);
-  // ── xdd-agent fork marker: verify jiti loads from src/ without dist/ ──
-  console.log("[workflow] xdd-agent fork — loaded via jiti from src/ (no dist/ required)");
   // /effort is independent of the manager implementation and can safely
   // survive an extension-version fallback to a fresh manager.
   const effort = (previousRuntime ?? runtimeClaim.versionMismatch)?.effort ?? createEffortState();
