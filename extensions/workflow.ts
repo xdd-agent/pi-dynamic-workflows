@@ -1,4 +1,6 @@
 import { createCodingTools, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+// ── Verify jiti loads plain .js from src/ (no dist/ needed) ──
+import "../src/jiti-verify.js";
 import {
   claimWorkflowRuntime,
   discardWorkflowRuntime,
