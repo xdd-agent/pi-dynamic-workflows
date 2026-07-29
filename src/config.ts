@@ -2,8 +2,14 @@
  * Configuration constants for pi-dynamic-workflows.
  */
 
-// ── xdd-agent fork: verify jiti resolves .js imports to .ts (no dist/ needed) ──
-console.log("[workflow] xdd-agent fork — src/config.ts loaded by jiti (.js → .ts resolution confirmed)");
+// ── xdd-agent fork: write a marker file to verify jiti resolves .js → .ts (no dist/ needed) ──
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+try {
+  const dir = join(process.env.HOME || process.env.USERPROFILE || ".", ".pi", "workflows");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "jiti-verified.txt"), `xdd-agent fork — config.ts loaded by jiti from src/ (no dist/ required)\n${new Date().toISOString()}\n`);
+} catch { /* best-effort */ }
 
 /** Maximum number of agents allowed per workflow run. */
 export const MAX_AGENTS_PER_RUN = 1000;
