@@ -575,7 +575,13 @@ export class WorkflowAgent {
             ? (result) => {
                 const allowSet = new Set(this.allowedExtensions!);
                 result.extensions = result.extensions.filter((ext) => {
-                  require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-paths.log', JSON.stringify({ path: ext.path, resolvedPath: ext.resolvedPath, sourceInfo: ext.sourceInfo }) + '\n');
+                  require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-paths.log', JSON.stringify({
+                    path: ext.path,
+                    resolvedPath: ext.resolvedPath,
+                    sourceInfo: ext.sourceInfo,
+                    toolNames: [...ext.tools.keys()],
+                    baseDirBasename: ext.sourceInfo?.baseDir ? ext.sourceInfo.baseDir.split(/[/\\]/).filter(Boolean).pop() : null
+                  }) + '\n');
                   // Extract a useful basename from the resolved path:
                   //  - Directory-based extensions (e.g. .../fetch-full/index.ts) → dirname ("fetch-full")
                   //  - Single-file extensions (e.g. .../credential-guard.ts)   → filename without ext ("credential-guard")
