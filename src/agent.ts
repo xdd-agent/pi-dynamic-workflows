@@ -543,6 +543,7 @@ export class WorkflowAgent {
     this.mainModel = options.mainModel;
     this.sharedRegistry = options.modelRegistry;
     this.allowedExtensions = options.allowedExtensions;
+    void (require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-debug.log', JSON.stringify({ step: 'ctor', allowedExtensions: this.allowedExtensions, time: new Date().toISOString() }) + '\n'));
   }
 
   /**
@@ -566,6 +567,7 @@ export class WorkflowAgent {
     if (!this.sharedResourceLoaderPromise) {
       this.sharedResourceLoaderPromise = (async () => {
         const filterExts = this.allowedExtensions !== undefined;
+        void (require('node:fs').appendFileSync('C:/Users/Dien/.pi/workflows/ext-debug.log', JSON.stringify({ step: 'getSharedResourceLoader', filterExts: filterExts, allowedExtensions: this.allowedExtensions, time: new Date().toISOString() }) + '\n'));
         const loader = new DefaultResourceLoader({
           cwd: this.cwd,
           agentDir,
