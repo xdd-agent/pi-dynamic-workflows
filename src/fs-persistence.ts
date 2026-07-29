@@ -59,6 +59,29 @@ export function ensureDir(fs: PersistenceFsLayer, dir: string): void {
 }
 
 /**
+ * Rename with up to 3 immediate retries on EPERM.
+ *
+ * On Windows, antivirus, search indexers, or other processes can briefly
+ * open a file between write and rename, causing renameSync to fail with
+ * EPERM on a transient lock. Retrying immediately (no backoff) almost always
+ * succeeds — the lock is typically sub-millisecond. Non-EPERM errors and
+ * persistent EPERM beyond the retry limit propagate to the caller.
+ */
+const EPERM_RETRY_MAX = 3;
+
+function renameSyncWithRetry(fs: PersistenceFsLayer, oldPath: string, newPath: string): void {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      fs.renameSync(oldPath, newPath);
+      return;
+    } catch (err) {
+      if ((err as { code?: string }).code !== "EPERM" || attempt >= EPERM_RETRY_MAX - 1) throw err;
+      // EPERM on Windows — transient lock; retry immediately.
+    }
+  }
+}
+
+/**
  * Atomically write JSON to `path`: tmp-write + rename (atomic on the same
  * filesystem, so a crash mid-write can't corrupt the live file), then
  * best-effort refresh a `.bak` sidecar from the just-written good state —
@@ -69,7 +92,7 @@ export function ensureDir(fs: PersistenceFsLayer, dir: string): void {
 export function writeJsonAtomicWithBackup(fs: PersistenceFsLayer, path: string, data: unknown): void {
   const json = JSON.stringify(data, null, 2);
   fs.writeFileSync(`${path}.tmp`, json);
-  fs.renameSync(`${path}.tmp`, path);
+  renameSyncWithRetry(fs, `${path}.tmp`, path);
   try {
     fs.writeFileSync(`${path}.bak`, json);
   } catch {
