@@ -112,6 +112,7 @@ function formatItem(w: WorkflowListItem): string {
     `name=${JSON.stringify(w.name)}`,
     `kind=${w.kind}`,
     `description=${JSON.stringify(w.description)}`,
+    ...(w.parameters ? [`parameters=${JSON.stringify(w.parameters)}`] : []),
     ...(w.savedAt ? [`savedAt=${JSON.stringify(w.savedAt)}`] : []),
   ];
   return parts.join(" ");

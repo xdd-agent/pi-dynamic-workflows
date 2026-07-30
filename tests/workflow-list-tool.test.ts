@@ -7,12 +7,13 @@ import { createWorkflowListTool } from "../src/workflow-list-tool.js";
 
 // ── Stubs ──
 
-function saved(name: string, location: "project" | "user" = "project", description = `${name} description`): SavedWorkflow {
+function saved(name: string, location: "project" | "user" = "project", description = `${name} description`, parameters?: SavedWorkflow["parameters"]): SavedWorkflow {
   return {
     name,
     description,
     script: "export const meta = { name: '" + name + "', description: '" + description + "' }; return await agent('x')",
     location,
+    parameters,
     path: "/fake/" + name + ".json",
     savedAt: "2026-07-30T12:00:00.000Z",
   };
@@ -181,6 +182,32 @@ test("empty string filter returns all results", async () => {
 });
 
 // ── Display fields ──
+
+test("saved workflows with parameters include them in text output", async () => {
+  const storage = fakeStorage([
+    saved("my-wf", "project", "With args", {
+      topic: { type: "string", description: "Research topic", required: true },
+      depth: { type: "string", description: "Depth", required: false, default: "standard" },
+    }),
+  ]);
+  const result = await execute(storage);
+  const t = text(result);
+
+  assert.match(t, /parameters=/);
+  assert.match(t, /"topic"/);
+  assert.match(t, /"type":"string"/);
+  assert.match(t, /"required":true/);
+});
+
+test("saved workflows without parameters omit the field", async () => {
+  const storage = fakeStorage([saved("no-args", "project")]);
+  const result = await execute(storage);
+  const t = text(result);
+
+  const line = t.split("\n").find((l) => l.includes('name="no-args"'));
+  assert.ok(line);
+  assert.ok(!line!.includes("parameters="));
+});
 
 test("saved workflows include savedAt field", async () => {
   const storage = fakeStorage([saved("audit", "project")]);
