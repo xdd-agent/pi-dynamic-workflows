@@ -727,7 +727,7 @@ The role descriptions are deliberately broad. `small` covers lightweight or high
 
 #### Evidence
 
-The current configuration and runtime already preserve an extensible seam: `ModelTierConfig.tiers` is a `Record<string, string>`, `resolveTierModel()` accepts any string, `WorkflowAgentOptions.tier` is a string, and `sortedTierNames()` orders additional names after the three standard routes. The existing command can display additional keys present in the configuration, although it cannot yet create or remove them and the configuration cannot describe their purposes.
+The current configuration and runtime already preserve an extensible seam: `ModelTierConfig.tiers` is a `Record<string, string | string[]>`, `resolveTierModels()` returns an ordered fallback list (or normalizes single strings to `[string]`), `WorkflowAgentOptions.tier` is a string, and `sortedTierNames()` orders additional names after the three standard routes. Each tier can hold a single model spec or an ordered fallback list — the first available model is used, and provider rate limits trigger automatic cross-provider failover to the next in the list.
 
 The dynamic-workflow prompting research recommends keeping the stable `small`/`medium`/`big` vocabulary always-on, moving live catalogues to deliberate discovery, and avoiding a concrete model list in permanent context. See [Dynamic workflow authoring patterns: placement matrix](https://github.com/Whamp/pi-dynamic-workflows/blob/8bfe12fc020159748e5c0519951896086c493ce2/docs/research/claude-code-dynamic-workflow-patterns.md#placement-matrix-for-the-current-guidance).
 

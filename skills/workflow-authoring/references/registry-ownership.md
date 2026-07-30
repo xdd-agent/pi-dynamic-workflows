@@ -12,4 +12,4 @@ The agent registry owns agent-type names and their bound instructions, tools, mo
 
 ## Priority
 
-Routing priority is explicit `model` > `agentType` model > `tier` > phase model > metadata model > implicit `medium` > session default. Higher priority means selection, not "try this then fall back to the next selector." If the selected model or route is unavailable, execution falls directly to the session default; it does not try lower-priority selectors. Avoid specifying competing selectors unless deliberately overriding a lower-priority default.
+Routing priority is explicit `model` > `agentType` model > `tier` > phase model > metadata model > implicit `medium` > session default. Higher priority means selection, not "try this then fall back to the next selector." Within a selected `tier`, the configured fallback list (if any) is tried in order before falling through to the session default. Registering competing selectors should be done only when deliberately overriding a lower-priority default.

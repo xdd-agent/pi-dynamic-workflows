@@ -223,17 +223,19 @@ This feature was added in the `xdd-agent` fork and is not present in upstream `@
 <details>
 <summary><strong>Model tiers and run controls</strong></summary>
 
-Model tiers live at `~/.pi/workflows/model-tiers.json` and accept Pi CLI-style thinking suffixes:
+Model tiers live at `~/.pi/workflows/model-tiers.json` and accept Pi CLI-style thinking suffixes. Each tier can hold a single model spec or an ordered fallback list — the first available model is used, and provider rate limits trigger automatic cross-provider failover:
 
 ```json
 {
   "tiers": {
-    "small": "openai-codex/gpt-5.4-mini:low",
+    "small": ["openai-codex/gpt-5.4-mini:low", "anthropic/claude-haiku-4-5:low"],
     "medium": "openai-codex/gpt-5.4:medium",
-    "big": "openai-codex/gpt-5.5:xhigh"
+    "big": ["openai-codex/gpt-5.5:xhigh", "anthropic/claude-opus-4-8:xhigh"]
   }
 }
 ```
+
+Single-string values remain valid — arrays are optional. When a model in the list isn't found in the registry or hits a provider usage limit mid-run, the next model in the list is tried automatically. The session default model is the ultimate safety net after all fallbacks are exhausted.
 
 Use `/workflows-models` to edit them interactively. Without a config, the extension ranks authenticated models by capability hints and assigns distinct models when possible.
 

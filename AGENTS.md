@@ -115,7 +115,7 @@ Single source of truth for the 5 curated built-in patterns (deep-research, adver
 Parses `provider/modelId[:thinking]` strings. Handles provider-qualified specs, bare model IDs, fuzzy matching, alias vs. dated-version preference, thinking level suffixes, and provider fallback.
 
 ### `src/model-tier-config.ts` — Tier configuration
-User-configurable tier mapping (small/medium/big → model spec). Stored in `~/.pi/workflows/model-tiers.json`. `rankByCapability()` sorts models by output price, then name-substring hints, then context window.
+User-configurable tier mapping (small/medium/big → model spec or ordered fallback list). Stored in `~/.pi/workflows/model-tiers.json`. `rankByCapability()` sorts models by output price, then name-substring hints, then context window. `resolveTierModels()` returns the full ordered fallback list for a tier; `resolveTierModel()` returns the primary entry for backward compat.
 
 ### `src/adversarial-review.ts`, `src/deep-research.ts`, `src/code-review.ts` — Pattern generators
 Each generates a complete JavaScript workflow script string for its pattern. These are pure string generation functions — no runtime dependencies. They use `JSON.stringify()` for safe embedding of user-supplied strings.
