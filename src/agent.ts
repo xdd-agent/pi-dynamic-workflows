@@ -998,6 +998,8 @@ export class WorkflowAgent {
     // degraded it to the session's main model, matching the docs.)
     if (isExplicitRequest && firstMiss) {
       const failedSpecs = candidates.filter(Boolean);
+      // The resolver's error already names the spec and the remedy; the tier
+      // branch swaps in its own message so the config source is named too.
       const message = options.model
         ? (firstMiss.error ?? `Model "${firstMiss.spec}" not found. Use /workflows-models to choose an available model.`)
         : failedSpecs.length > 1
