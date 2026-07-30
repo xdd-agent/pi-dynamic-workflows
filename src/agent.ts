@@ -432,8 +432,11 @@ export interface AgentRunOptions<TSchemaDef extends TSchema | undefined = undefi
   onUsage?: (usage: AgentUsage) => void;
   /**
    * Model spec for this subagent: either `provider/modelId` (unambiguous) or a
-   * bare `modelId`. When it can't be resolved, the session default is used and
-   * a warning is logged. When omitted, the session default applies.
+   * bare `modelId`, parsed with the same grammar as Pi CLI's `--model`. When it
+   * can't be resolved to a known model, `run()` throws MODEL_NOT_FOUND rather
+   * than silently substituting the session default — a wrong-model run would
+   * otherwise look successful while quietly answering with different (or
+   * unauthenticated) weights. When omitted, the session default applies.
    */
   model?: string;
   /**
@@ -443,12 +446,33 @@ export interface AgentRunOptions<TSchemaDef extends TSchema | undefined = undefi
    * the tier has no configured entry. An explicit `model` always takes priority,
    * so workflow scripts can use `{ tier: "small" }` for coarse routing without
    * caring which concrete model backs that tier.
+   *
+   * A script-requested tier that resolves to an unavailable model spec is just
+   * as loud as an explicit `model` pin — `run()` throws MODEL_NOT_FOUND naming
+   * the tier and the spec it resolved to, e.g. `tier "big" from
+   * model-tiers.json resolves to "deadprov/x", which is not available`.
+   * A tier holding an ordered fallback list tries each spec in turn and only
+   * throws once the entire configured chain is unavailable.
+   *
+   * That's deliberately asymmetric with the IMPLICIT default tier an untagged
+   * agent (neither `model` nor `tier` set) gets routed through: since the
+   * script never asked for that tier, a broken default degrades to the
+   * session default instead of failing every untagged agent in the run — see
+   * onModelFallback below for how that degrade stays visible.
    */
   tier?: string;
   /** Called with the resolved model id once known (for display/telemetry). */
   onModelResolved?: (modelId: string) => void;
-  /** Called when `model`/`tier`/phase resolved to a spec that wasn't found (fell back to session default). */
-  onModelFallback?: (requestedSpec: string) => void;
+  /**
+   * Called (at most once per WorkflowAgent instance) when an UNTAGGED agent's
+   * implicit default "medium" tier resolves to a model spec that isn't
+   * available. This is the one case that degrades to the session default
+   * instead of throwing MODEL_NOT_FOUND (see `tier` above) — but the degrade
+   * must still land in the run's own log/event stream, not just a
+   * console.warn, or a broken default tier silently drifts every untagged
+   * agent's model with zero trace in the run itself.
+   */
+  onModelFallback?: (info: { tier: string; requestedSpec: string }) => void;
   /** Called with a compact snapshot of this subagent's message/tool history. */
   onHistory?: (history: AgentHistoryEntry[]) => void;
   /** Run this agent in a different working directory (e.g. an isolated worktree). */
@@ -537,6 +561,15 @@ export class WorkflowAgent {
   private sharedResourceLoaderPromise?: Promise<DefaultResourceLoader>;
   /** Per-run extension allowlist (see WorkflowAgentOptions.allowedExtensions). */
   private readonly allowedExtensions?: string[];
+  /**
+   * Emitted at most once per instance (~= once per run, see the class-level
+   * lifetime note above): the untagged/default "medium" tier resolved to a
+   * model spec that isn't available. Deliberately per-instance rather than a
+   * MODEL_NOT_FOUND throw — an untagged agent never asked for that specific
+   * model, so a broken default tier shouldn't fail every untagged agent in the
+   * run. See onModelFallback below for the (still-loud) degrade path.
+   */
+  private warnedDefaultTierUnavailable = false;
 
   constructor(options: WorkflowAgentOptions = {}) {
     this.cwd = options.cwd ?? process.cwd();
@@ -752,18 +785,36 @@ export class WorkflowAgent {
     // resolution, and the subagent session's runtime below.
     const modelRegistry = await this.getRegistry(options.modelRegistry);
 
+    // The candidates list's terminal semantics are asymmetric by design (#131):
+    //   - options.model or options.tier was explicitly set by the script (or by
+    //     workflow.ts's phase-based routing, which only ever supplies
+    //     options.model when the user configured that phase): the configured
+    //     chain is exhaustive — if every spec in it is unavailable, run()
+    //     throws MODEL_NOT_FOUND naming the source. Resolution is
+    //     deterministic, so retrying the same spec is pointless
+    //     (recoverable:false), and a silent substitution would otherwise run
+    //     real API calls against a different (or unauthenticated) model while
+    //     the caller believes its pin/tier was honored.
+    //   - neither was set: the agent is UNTAGGED and only got routed through
+    //     the implicit default "medium" tier because *some other* agent's tier
+    //     is configured (see resolveAgentModelSpec). This agent never asked for
+    //     that model, so a broken default tier degrades to the session default
+    //     instead of failing every untagged agent in the run — but the degrade
+    //     still needs to be loud (one-shot onModelFallback), not a silent
+    //     continuation.
     // Resolve the ordered list of model specs to try (explicit model > tier >
-    // session default). Falls back to the session's main model as the ultimate
-    // safety net when no spec resolves.
+    // fallback list > implicit medium > session default).
     const modelSpecs = resolveAgentModelSpec(
       options,
       this.mainModel,
       () => this.loadTierConfig(),
       () => warnTierUnconfiguredOnce(this.mainModel, modelRegistry),
     );
-    // Append session default as ultimate safety net (deduplicated).
+    const isExplicitRequest = Boolean(options.model || options.tier);
+    // Append session default as ultimate safety net (deduplicated) — untagged
+    // agents only; an explicit request's chain is exhaustive by design.
     const candidates = [...modelSpecs];
-    if (this.mainModel && !candidates.includes(this.mainModel)) {
+    if (!isExplicitRequest && this.mainModel && !candidates.includes(this.mainModel)) {
       candidates.push(this.mainModel);
     }
 
@@ -781,6 +832,10 @@ export class WorkflowAgent {
     // Try each candidate model in order. On registry miss → skip. On provider
     // usage limit → skip and try next. On success → return. On other error → throw.
     let lastProviderLimitError: WorkflowError | undefined;
+    // First candidate that failed to resolve (registry miss) — feeds the
+    // explicit-request MODEL_NOT_FOUND message and the one-shot untagged
+    // fallback event below.
+    let firstMiss: { spec: string; error?: string } | undefined;
     for (const modelSpec of candidates) {
       if (!modelSpec) continue;
 
@@ -788,7 +843,17 @@ export class WorkflowAgent {
       const resolved = resolveModelSpecWithThinking(modelSpec, modelRegistry);
       if (resolved.warning) console.warn(`[workflow] ${resolved.warning}`);
       if (!resolved.model) {
+        // Deterministic registry miss — record the first one, warn, and try
+        // the next candidate. Exhaustion is handled after the loop.
+        firstMiss ??= { spec: modelSpec, error: resolved.error };
         console.warn(`[workflow] model "${modelSpec}" not found in registry; trying next fallback`);
+        if (!isExplicitRequest && !this.warnedDefaultTierUnavailable) {
+          // Untagged agent: the implicit default "medium" tier didn't resolve.
+          // Degrade to the session default, but make it visible in the run
+          // exactly once (#131).
+          this.warnedDefaultTierUnavailable = true;
+          options.onModelFallback?.({ tier: "medium", requestedSpec: modelSpec });
+        }
         continue;
       }
 
@@ -923,6 +988,26 @@ export class WorkflowAgent {
     // surface it so the run can checkpoint (pause) rather than silently
     // falling through to the session default.
     if (lastProviderLimitError) throw lastProviderLimitError;
+
+    // An explicit request whose configured spec(s) could not be honored is an
+    // error, not a silent substitution (#131): resolution is deterministic, so
+    // retrying the same spec would fail identically, and running a different
+    // model while the caller believes its pin/tier was honored would look
+    // successful while quietly answering with different weights. (A tier with
+    // no configured entry never reaches here — resolveAgentModelSpec already
+    // degraded it to the session's main model, matching the docs.)
+    if (isExplicitRequest && firstMiss) {
+      const failedSpecs = candidates.filter(Boolean);
+      const message = options.model
+        ? (firstMiss.error ?? `Model "${firstMiss.spec}" not found. Use /workflows-models to choose an available model.`)
+        : failedSpecs.length > 1
+          ? `tier "${options.tier}" from model-tiers.json: all ${failedSpecs.length} configured specs are unavailable (${failedSpecs.join(", ")}). Use /workflows-models to fix the tier.`
+          : `tier "${options.tier}" from model-tiers.json resolves to "${firstMiss.spec}", which is not available. Use /workflows-models to choose an available model.`;
+      throw new WorkflowError(message, WorkflowErrorCode.MODEL_NOT_FOUND, {
+        recoverable: false,
+        agentLabel: options.label,
+      });
+    }
 
     // No model resolved from any candidate — use the session default.
     // This replicates the pre-fallback behavior when modelSpec was undefined.

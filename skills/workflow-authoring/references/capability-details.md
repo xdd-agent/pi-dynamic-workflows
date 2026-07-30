@@ -26,8 +26,10 @@ Every exact fact below is projected from the installed extension's capability co
 - Constraint: schema noncompliance after bounded structured-output repair is nonrecoverable and bypasses agent retries
 - Constraint: per-agent retries override invocation retries; retries are floored and clamped to 0..3
 - Constraint: resume replays only the longest unchanged prefix; the first miss and every later call execute live
-- Constraint: selector priority is explicit model > agentType model > tier > phase model > metadata model > implicit medium > session default. Within a selected tier, the fallback list (if any) is tried in order.
-- Constraint: if the selected model or route is unavailable, execution falls directly to the session default rather than trying lower-priority selectors
+- Constraint: selector priority is explicit model > agentType model > tier > phase model > metadata model > implicit medium > session default
+- Constraint: a selected tier's ordered fallback list (if any) is tried in full before the tier's terminal behavior applies
+- Constraint: an explicit model, agentType model, tier, or phase model whose entire configured chain resolves to unavailable models throws MODEL_NOT_FOUND naming the source (e.g. the tier and what it resolved to) instead of falling back
+- Constraint: only the implicit default medium tier (no explicit model, tier, agentType, or phase model requested) degrades to the session default when unavailable, logging a one-time run-visible warning instead of throwing
 - Constraint: worktree isolation is best-effort; failure logs that isolation was ignored and continues without an isolated working directory
 
 <a id="parallel"></a>
@@ -295,6 +297,15 @@ Every exact fact below is projected from the installed extension's capability co
 - Constraint: resumes a prior incomplete run with an edited script
 - Constraint: unchanged positional agent calls replay from cache until the first changed or inserted call
 - Constraint: always runs in the background
+
+<a id="tool-input-allowedextensions"></a>
+## allowedExtensions
+
+- Classification: `workflow-tool-input`
+- Support: `supported`
+- Signature: `allowedExtensions?: string[]`
+- Constraint: host extensions to load into subagent sessions, by directory basename
+- Constraint: an empty array also loads no extensions; overrides the saved/built-in workflow allowlist for the script path
 
 <a id="metadata"></a>
 ## export const meta

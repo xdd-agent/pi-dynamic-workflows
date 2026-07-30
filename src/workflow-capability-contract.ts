@@ -309,7 +309,9 @@ const capabilities: readonly CapabilityDescriptor[] = [
       "per-agent retries override invocation retries; retries are floored and clamped to 0..3",
       "resume replays only the longest unchanged prefix; the first miss and every later call execute live",
       "selector priority is explicit model > agentType model > tier > phase model > metadata model > implicit medium > session default",
-      "if the selected model or route is unavailable, execution falls directly to the session default rather than trying lower-priority selectors",
+      "a selected tier's ordered fallback list (if any) is tried in full before the tier's terminal behavior applies",
+      "an explicit model, agentType model, tier, or phase model whose entire configured chain resolves to unavailable models throws MODEL_NOT_FOUND naming the source (e.g. the tier and what it resolved to) instead of falling back",
+      "only the implicit default medium tier (no explicit model, tier, agentType, or phase model requested) degrades to the session default when unavailable, logging a one-time run-visible warning instead of throwing",
       "worktree isolation is best-effort; failure logs that isolation was ignored and continues without an isolated working directory",
     ],
     evidence: ["tests/workflow-runtime.test.ts", "tests/agent-registry.test.ts", "tests/structured-output.test.ts"],
@@ -470,6 +472,10 @@ const capabilities: readonly CapabilityDescriptor[] = [
     "resumes a prior incomplete run with an edited script",
     "unchanged positional agent calls replay from cache until the first changed or inserted call",
     "always runs in the background",
+  ]),
+  toolInput("allowedExtensions", "allowedExtensions?: string[]", [
+    "host extensions to load into subagent sessions, by directory basename",
+    "an empty array also loads no extensions; overrides the saved/built-in workflow allowlist for the script path",
   ]),
   {
     id: "workflow.script.metadata",
