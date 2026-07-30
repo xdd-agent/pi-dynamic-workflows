@@ -123,6 +123,12 @@ export {
 } from "./workflow-capability-contract.js";
 export { registerWorkflowCommands } from "./workflow-commands.js";
 export type {
+  WorkflowListInput,
+  WorkflowListItem,
+  WorkflowListToolOptions,
+} from "./workflow-list-tool.js";
+export { createWorkflowListTool } from "./workflow-list-tool.js";
+export type {
   WorkflowControlInput,
   WorkflowControlRunDetails,
   WorkflowControlToolOptions,

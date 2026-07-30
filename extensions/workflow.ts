@@ -11,6 +11,7 @@ import {
   createEffortState,
   createWebTools,
   createWorkflowControlTool,
+  createWorkflowListTool,
   createWorkflowStorage,
   createWorkflowTool,
   installResultDelivery,
@@ -76,8 +77,10 @@ export default function extension(pi: ExtensionAPI) {
 
   const workflowTool = createWorkflowTool({ cwd, manager, storage });
   const workflowControlTool = createWorkflowControlTool({ manager });
+  const workflowListTool = createWorkflowListTool({ storage });
   pi.registerTool(workflowTool);
   pi.registerTool(workflowControlTool);
+  pi.registerTool(workflowListTool);
   // Auto-resume runs that paused on a provider usage limit once the quota is
   // likely refilled. Standalone: only consumes the manager's public surface, so
   // it stays decoupled from manager/persistence internals. Its constructor also
@@ -123,7 +126,7 @@ export default function extension(pi: ExtensionAPI) {
     // advertise the shared registry's models.
     manager.setModelRegistry(ctx.modelRegistry);
     const active = pi.getActiveTools();
-    const workflowTools = [workflowTool.name, workflowControlTool.name];
+    const workflowTools = [workflowTool.name, workflowControlTool.name, workflowListTool.name];
     const missing = workflowTools.filter((name) => !active.includes(name));
     if (missing.length) pi.setActiveTools([...active, ...missing]);
     // Scope the /workflows history to this session: runs persist on disk across
