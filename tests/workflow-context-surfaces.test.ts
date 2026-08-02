@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,6 +11,7 @@ import {
   SettingsManager,
 } from "@earendil-works/pi-coding-agent";
 import packageJson from "../package.json" with { type: "json" };
+import { execNpm } from "../src/exec-npm.js";
 import {
   checkWorkflowContextMeasurement,
   measureWorkflowContextSurfaces,
@@ -100,7 +100,7 @@ test("workflow context measurement generation is deterministic and committed art
 });
 
 test("context freshness command prints both current byte counts", () => {
-  const output = execFileSync("npm", ["run", "context:check"], { cwd: ROOT, encoding: "utf8" });
+  const output = execNpm(["run", "context:check"], { cwd: ROOT });
 
   assert.match(output, /Permanent workflow prompt: \d+ bytes/);
   assert.match(output, /Provider-visible workflow tool definition: \d+ bytes/);

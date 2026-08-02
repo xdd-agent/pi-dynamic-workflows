@@ -455,9 +455,12 @@ function validatePackage(root: string, publishableFiles: readonly string[]): Wor
     const source = readFileSync(join(root, sourcePath), "utf8");
     for (const match of source.matchAll(/\[[^\]]+\]\(([^)#]+)(?:#([^)]+))?\)/g)) {
       const target = normalize(join(dirname(sourcePath), match[1]));
+      // npm pack reports posix paths regardless of platform; the native join
+      // above uses backslashes on Windows, so normalize the comparison side.
+      const packagedTarget = target.replaceAll("\\", "/");
       const anchor = match[2];
       const outsidePackage = relative(".", target).startsWith("..");
-      const targetMissing = !files.has(target);
+      const targetMissing = !files.has(packagedTarget);
       const targetSource = !targetMissing && anchor ? readFileSync(join(root, target), "utf8") : null;
       if (outsidePackage || targetMissing || (anchor && targetSource !== null && !anchorExists(targetSource, anchor))) {
         const subject = `${sourcePath} -> ${target}${anchor ? `#${anchor}` : ""}`;

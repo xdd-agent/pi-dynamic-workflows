@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 import test from "node:test";
 import packageJson from "../package.json" with { type: "json" };
+import { execNpm } from "../src/exec-npm.js";
 import { runWorkflow } from "../src/workflow.js";
 import {
   CAPABILITY_TABLE_PUBLICATION_PATHS,
@@ -54,7 +54,7 @@ function requiredSchemaFields(schema?: Record<string, unknown>): unknown[] {
 }
 
 function publishableFiles(): Set<string> {
-  const output = execFileSync("npm", ["pack", "--dry-run", "--json"], { cwd: ROOT, encoding: "utf8" });
+  const output = execNpm(["pack", "--dry-run", "--json"], { cwd: ROOT });
   return new Set(parseNpmPackFilePaths(output));
 }
 
@@ -80,12 +80,15 @@ test("publishable Pi package discovers the workflow-authoring skill and all link
     const source = readFileSync(join(ROOT, sourcePath), "utf8");
     for (const match of source.matchAll(/\[[^\]]+\]\(([^)#]+)(?:#([^)]+))?\)/g)) {
       const target = normalize(join(dirname(sourcePath), match[1]));
+      // npm pack reports posix paths regardless of platform; the native join
+      // above uses backslashes on Windows, so normalize the comparison side.
+      const packagedTarget = target.replaceAll("\\", "/");
       assert.equal(
         relative(".", target).startsWith(".."),
         false,
         `${sourcePath} links outside the package: ${match[1]}`,
       );
-      assert.ok(files.has(target), `${sourcePath} has a broken packaged link to ${target}`);
+      assert.ok(files.has(packagedTarget), `${sourcePath} has a broken packaged link to ${target}`);
       if (match[2]) {
         const targetSource = readFileSync(join(ROOT, target), "utf8");
         const headingAnchors = targetSource
