@@ -123,12 +123,6 @@ export {
 } from "./workflow-capability-contract.js";
 export { registerWorkflowCommands } from "./workflow-commands.js";
 export type {
-  WorkflowListInput,
-  WorkflowListItem,
-  WorkflowListToolOptions,
-} from "./workflow-list-tool.js";
-export { createWorkflowListTool } from "./workflow-list-tool.js";
-export type {
   WorkflowControlInput,
   WorkflowControlRunDetails,
   WorkflowControlToolOptions,
@@ -146,6 +140,12 @@ export {
   registerWorkflowTriggerCommand,
   type WorkflowModeState,
 } from "./workflow-editor.js";
+export type {
+  WorkflowListInput,
+  WorkflowListItem,
+  WorkflowListToolOptions,
+} from "./workflow-list-tool.js";
+export { createWorkflowListTool } from "./workflow-list-tool.js";
 export type { ManagedRun, WorkflowManagerOptions } from "./workflow-manager.js";
 export { WorkflowManager } from "./workflow-manager.js";
 export type { WorkflowProjectPaths } from "./workflow-paths.js";

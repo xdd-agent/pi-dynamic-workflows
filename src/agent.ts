@@ -622,13 +622,14 @@ export class WorkflowAgent {
           cwd: this.cwd,
           agentDir,
           settingsManager: SettingsManager.create(this.cwd, agentDir),
-          noExtensions: filterExts ? false : true,
+          noExtensions: !filterExts,
           extensionsOverride: filterExts
             ? (result) => {
-                const allowSet = new Set(this.allowedExtensions!);
+                const allowSet = new Set(this.allowedExtensions ?? []);
                 result.extensions = result.extensions.filter((ext) => {
-                  const basename = WorkflowAgent.resolveExtensionName(ext.resolvedPath)
-                    ?? (() => {
+                  const basename =
+                    WorkflowAgent.resolveExtensionName(ext.resolvedPath) ??
+                    (() => {
                       const parts = ext.resolvedPath.split(/[/\\]/);
                       const filePart = parts[parts.length - 1] ?? "";
                       const dirPart = parts[parts.length - 2] ?? "";
@@ -1029,7 +1030,11 @@ export class WorkflowAgent {
 
       // Name the persisted session.
       if (this.persistAgentSessions && !this.sessionOptions.sessionManager && options.sessionName) {
-        try { sessionManager.appendSessionInfo(options.sessionName); } catch { /* best-effort */ }
+        try {
+          sessionManager.appendSessionInfo(options.sessionName);
+        } catch {
+          /* best-effort */
+        }
       }
 
       let removeAbortListener: (() => void) | undefined;
@@ -1077,12 +1082,18 @@ export class WorkflowAgent {
       } finally {
         removeAbortListener?.();
         removeHistoryListener?.();
-        try { emitHistory(); } catch { /* diagnostic only */ }
+        try {
+          emitHistory();
+        } catch {
+          /* diagnostic only */
+        }
         if (options.onUsage) {
           try {
             const usage = usageFromStats(session.getSessionStats());
             if (usage) options.onUsage(usage);
-          } catch { /* best-effort */ }
+          } catch {
+            /* best-effort */
+          }
         }
         session.dispose();
       }

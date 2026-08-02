@@ -115,7 +115,7 @@ const workflowToolSchema = Type.Object({
   allowedExtensions: Type.Optional(
     Type.Array(Type.String(), {
       description:
-        "Host extensions to load into subagent sessions, by directory basename (e.g. [\"fetch-full\", \"pi-session-context\"]). Omit to load no extensions (default). An empty array also loads no extensions. Saved/built-in workflows supply their own allowlist; this field overrides it for the script path.",
+        'Host extensions to load into subagent sessions, by directory basename (e.g. ["fetch-full", "pi-session-context"]). Omit to load no extensions (default). An empty array also loads no extensions. Saved/built-in workflows supply their own allowlist; this field overrides it for the script path.',
     }),
   ),
 });

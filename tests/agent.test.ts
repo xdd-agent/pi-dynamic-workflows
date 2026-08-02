@@ -127,17 +127,15 @@ const noCfg = () => null;
 
 test("resolveAgentModelSpec: explicit model wins over tier (the precedence bug fix)", () => {
   // Even with a tier set AND a config that resolves it, an explicit model wins.
-  assert.deepEqual(
-    resolveAgentModelSpec({ model: "explicit/model", tier: "small" }, "main/model", loadCfg),
-    ["explicit/model"],
-  );
+  assert.deepEqual(resolveAgentModelSpec({ model: "explicit/model", tier: "small" }, "main/model", loadCfg), [
+    "explicit/model",
+  ]);
 });
 
 test("resolveAgentModelSpec: explicit model wins even when no config exists", () => {
-  assert.deepEqual(
-    resolveAgentModelSpec({ model: "explicit/model", tier: "small" }, "main/model", noCfg),
-    ["explicit/model"],
-  );
+  assert.deepEqual(resolveAgentModelSpec({ model: "explicit/model", tier: "small" }, "main/model", noCfg), [
+    "explicit/model",
+  ]);
 });
 
 test("resolveAgentModelSpec: tier resolves from config when no explicit model", () => {

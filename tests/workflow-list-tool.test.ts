@@ -1,17 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Check } from "typebox/value";
-import type { SavedWorkflow, WorkflowStorage } from "../src/workflow-saved.js";
 import type { WorkflowListItem } from "../src/workflow-list-tool.js";
 import { createWorkflowListTool } from "../src/workflow-list-tool.js";
+import type { SavedWorkflow, WorkflowStorage } from "../src/workflow-saved.js";
 
 // ── Stubs ──
 
-function saved(name: string, location: "project" | "user" = "project", description = `${name} description`, parameters?: SavedWorkflow["parameters"]): SavedWorkflow {
+function saved(
+  name: string,
+  location: "project" | "user" = "project",
+  description = `${name} description`,
+  parameters?: SavedWorkflow["parameters"],
+): SavedWorkflow {
   return {
     name,
     description,
-    script: "export const meta = { name: '" + name + "', description: '" + description + "' }; return await agent('x')",
+    script: `export const meta = { name: '${name}', description: '${description}' }; return await agent('x')`,
     location,
     parameters,
     path: "/fake/" + name + ".json",
@@ -106,10 +111,7 @@ test("saved workflows appear alongside built-ins without duplicates", async () =
 });
 
 test("saved project workflow takes precedence over saved user workflow", async () => {
-  const storage = fakeStorage([
-    saved("my-wf", "user", "User version"),
-    saved("my-wf", "project", "Project version"),
-  ]);
+  const storage = fakeStorage([saved("my-wf", "user", "User version"), saved("my-wf", "project", "Project version")]);
   const result = await execute(storage);
 
   const items = workflows(result);
@@ -141,10 +143,7 @@ test("filter by name substring", async () => {
   const items = workflows(result);
 
   assert.equal(items.length, 2); // code-review + codebase-audit
-  assert.deepEqual(
-    items.map((w: WorkflowListItem) => w.name).sort(),
-    ["code-review", "codebase-audit"],
-  );
+  assert.deepEqual(items.map((w: WorkflowListItem) => w.name).sort(), ["code-review", "codebase-audit"]);
 });
 
 test("filter by description substring", async () => {
