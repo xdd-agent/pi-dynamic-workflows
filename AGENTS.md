@@ -9,6 +9,16 @@
 1. **`allowedExtensions`** — per-run extension allowlisting for subagents. In upstream, subagent sessions always load zero host extensions (`noExtensions: true`). This fork allows callers to opt into loading a specific subset. Threaded through the entire stack: tool schema → manager → agent → resource loader → persistence → saved workflows.
 2. **Peer dependency floor** — bumped `@earendil-works/pi-coding-agent` from `>=0.80.6` to `>=0.80.8`.
 
+## Workflow documentation
+
+Before changing the workflow runtime, tool API, capability contract, or `workflow-authoring` skill, read [Protected workflow-authoring guidance](CONTRIBUTING.md#protected-workflow-authoring-guidance).
+
+- Keep stable capability facts in the executable capability contract and generated documentation.
+- Keep detailed authoring guidance in the on-demand skill, not the always-on prompt.
+- Do not copy live model or agent-type catalogues into static guidance.
+- Run `npm run context:check` with the other checks listed in the contributor guide.
+- If a protected file changes, review it before running `npm run guidance:accept -- <path>`.
+
 ## Architecture overview
 
 The system is a TypeScript Pi extension with ~45 source files in `src/`, ~50 test files in `tests/`, 2 skills, and 5 docs files. It registers two tools (`workflow` and `workflow_control`) plus slash commands for workflow management, model-tier editing, and the 5 built-in workflow patterns.
