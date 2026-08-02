@@ -36,6 +36,7 @@ const EXPECTED_RUNTIME_GLOBALS = [
 const EXPECTED_TOOL_INPUTS = [
   "agentRetries",
   "agentTimeoutMs",
+  "allowedExtensions",
   "args",
   "background",
   "concurrency",
