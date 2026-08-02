@@ -58,7 +58,12 @@ const RENDERED_PROMPT_BUDGET_BYTES = 800;
 // instead. The exact wording increases the measured definition from 4,276
 // to 4,392 bytes (+116), and the accepted ceiling moves with it, from
 // 4,283 to 4,392.
-const TOOL_DEFINITION_BUDGET_BYTES = 4_392;
+//
+// Fork: the per-run subagent extension allowlist input (`allowedExtensions`,
+// an array of host-extension directory basenames) adds a schema entry with a
+// full description, increasing the measured definition from 4,392 to 4,767
+// bytes (+375), and the accepted ceiling moves with it, from 4,392 to 4,767.
+const TOOL_DEFINITION_BUDGET_BYTES = 4_767;
 
 test("rendered workflow prompt contribution stays within its accepted size", async () => {
   await withRenderedWorkflow(async ({ systemPrompt, promptLines }) => {

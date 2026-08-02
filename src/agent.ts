@@ -1001,7 +1001,8 @@ export class WorkflowAgent {
       // The resolver's error already names the spec and the remedy; the tier
       // branch swaps in its own message so the config source is named too.
       const message = options.model
-        ? (firstMiss.error ?? `Model "${firstMiss.spec}" not found. Use /workflows-models to choose an available model.`)
+        ? (firstMiss.error ??
+          `Model "${firstMiss.spec}" not found. Use /workflows-models to choose an available model.`)
         : failedSpecs.length > 1
           ? `tier "${options.tier}" from model-tiers.json: all ${failedSpecs.length} configured specs are unavailable (${failedSpecs.join(", ")}). Use /workflows-models to fix the tier.`
           : `tier "${options.tier}" from model-tiers.json resolves to "${firstMiss.spec}", which is not available. Use /workflows-models to choose an available model.`;
