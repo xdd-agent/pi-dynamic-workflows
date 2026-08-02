@@ -7,9 +7,7 @@ import type { SavedWorkflow, WorkflowStorage } from "./workflow-saved.js";
 
 const workflowListSchema = Type.Object(
   {
-    filter: Type.Optional(
-      Type.String({ description: "Optional substring to filter workflow names by." }),
-    ),
+    filter: Type.Optional(Type.String({ description: "Optional substring to filter workflow names by." })),
   },
   { additionalProperties: false },
 );
@@ -69,27 +67,26 @@ export function createWorkflowListTool(
       const saved: WorkflowListItem[] = storage.list().map((w: SavedWorkflow) => ({
         name: w.name,
         description: w.description,
-        kind: (w.location === "project" ? "saved-project" : "saved-user") as
-          | "saved-project"
-          | "saved-user",
+        kind: (w.location === "project" ? "saved-project" : "saved-user") as "saved-project" | "saved-user",
         savedAt: w.savedAt,
         parameters: w.parameters,
       }));
 
-      // 3. Merge: saved wins over built-in of same name
-      const seen = new Set(saved.map((s) => s.name));
-      const merged = [...saved, ...builtins.filter((b) => !seen.has(b.name))];
+      // 3. Project-saved workflows take precedence over user-saved ones with
+      // the same name (a user override shadows the same-named project
+      // workflow elsewhere in the stack — see workflow-saved.ts load()).
+      const projectNames = new Set(saved.filter((w) => w.kind === "saved-project").map((w) => w.name));
+      const deduped = saved.filter((w) => w.kind === "saved-project" || !projectNames.has(w.name));
 
-      // 4. Apply filter if provided
-      const filter = typeof params.filter === "string" && params.filter.trim()
-        ? params.filter.trim().toLowerCase()
-        : null;
+      // 4. Merge: saved wins over built-in of same name
+      const seen = new Set(deduped.map((s) => s.name));
+      const merged = [...deduped, ...builtins.filter((b) => !seen.has(b.name))];
+
+      // 5. Apply filter if provided
+      const filter =
+        typeof params.filter === "string" && params.filter.trim() ? params.filter.trim().toLowerCase() : null;
       const filtered = filter
-        ? merged.filter(
-            (w) =>
-              w.name.toLowerCase().includes(filter) ||
-              w.description.toLowerCase().includes(filter),
-          )
+        ? merged.filter((w) => w.name.toLowerCase().includes(filter) || w.description.toLowerCase().includes(filter))
         : merged;
 
       // 5. Format
