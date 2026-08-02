@@ -431,6 +431,89 @@ test("WorkflowAgent.run() throws MODEL_NOT_FOUND naming the tier when an EXPLICI
   }
 });
 
+test("WorkflowAgent.run() tries a tier's ordered fallback list in full, running the first AVAILABLE entry", async () => {
+  const home = mkdtempSync(join(tmpdir(), "pi-dw-tier-fallback-home-"));
+  const cwd = mkdtempSync(join(tmpdir(), "pi-dw-tier-fallback-cwd-"));
+  const core = createFauxCore({
+    provider: "fauxtest-fallback",
+    models: [{ id: "faux-live", name: "Faux Live", contextWindow: 128000, maxTokens: 4096 }],
+  });
+  try {
+    await withFakeHomeAsync(home, async () => {
+      const tiersDir = join(home, ".pi", "workflows");
+      mkdirSync(tiersDir, { recursive: true });
+      // First entry unresolvable, second available: the chain is tried in
+      // order and the run succeeds on the second (fork feature).
+      writeFileSync(
+        join(tiersDir, "model-tiers.json"),
+        JSON.stringify({ tiers: { big: ["deadprov/ghost-a", "fauxtest-fallback/faux-live"] } }),
+      );
+
+      const runtime = await ModelRuntime.create({ authPath: join(home, "auth.json"), modelsPath: null });
+      runtime.registerProvider("fauxtest-fallback", {
+        name: "Faux Fallback",
+        baseUrl: "http://127.0.0.1:9/faux-fallback",
+        apiKey: "faux-dummy-key-not-used",
+        api: core.api,
+        streamSimple: core.streamSimple as never,
+        models: core.models.map((m) => ({
+          id: m.id,
+          name: m.name ?? m.id,
+          reasoning: false,
+          input: ["text"] as ("text" | "image")[],
+          cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: m.contextWindow ?? 128000,
+          maxTokens: m.maxTokens ?? 4096,
+        })),
+      });
+      const registry = new ModelRegistry(runtime);
+      core.setResponses([fauxAssistantMessage("ran-on-second-fallback", { stopReason: "stop" })]);
+
+      const agent = new WorkflowAgent({ cwd, modelRegistry: registry });
+      const result = await agent.run("task", { tier: "big", label: "fallback-success" });
+      assert.ok(result.includes("ran-on-second-fallback"));
+    });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("WorkflowAgent.run() throws MODEL_NOT_FOUND when a tier's ENTIRE ordered fallback list is unavailable", async () => {
+  const home = mkdtempSync(join(tmpdir(), "pi-dw-tier-exhausted-home-"));
+  const cwd = mkdtempSync(join(tmpdir(), "pi-dw-tier-exhausted-cwd-"));
+  try {
+    await withFakeHomeAsync(home, async () => {
+      const tiersDir = join(home, ".pi", "workflows");
+      mkdirSync(tiersDir, { recursive: true });
+      writeFileSync(
+        join(tiersDir, "model-tiers.json"),
+        JSON.stringify({ tiers: { big: ["deadprov/ghost-a", "deadprov/ghost-b"] } }),
+      );
+
+      const registry = {
+        getAll: () => [{ provider: "fauxtest", id: "faux-model", name: "faux-model" } as any],
+      } as any;
+
+      const agent = new WorkflowAgent({ cwd, modelRegistry: registry });
+      await assert.rejects(agent.run("task", { tier: "big", label: "exhausted-tier" }), (error: unknown) => {
+        assert.ok(error instanceof WorkflowError);
+        assert.equal(error.code, WorkflowErrorCode.MODEL_NOT_FOUND);
+        assert.equal(error.recoverable, false);
+        assert.match(error.message, /tier "big"/);
+        assert.match(error.message, /all 2 configured specs are unavailable/);
+        assert.match(error.message, /deadprov\/ghost-a/);
+        assert.match(error.message, /deadprov\/ghost-b/);
+        assert.equal(error.agentLabel, "exhausted-tier");
+        return true;
+      });
+    });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test("WorkflowAgent.run(): an untagged agent's IMPLICIT default medium tier degrades to the session default (not a throw) when it resolves to an unavailable model, and fires onModelFallback at most once per instance", async () => {
   const home = mkdtempSync(join(tmpdir(), "pi-dw-tier-dead-implicit-home-"));
   const cwd = mkdtempSync(join(tmpdir(), "pi-dw-tier-dead-implicit-cwd-"));
@@ -1274,4 +1357,43 @@ test("usageFromStats keeps cost-only stats (billed but tokens unreported)", () =
     cost: 0.01,
   });
   assert.equal(usage?.cost, 0.01);
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Fork feature: extension name resolution for the per-run extension allowlist
+// (allowedExtensions). resolveExtensionName walks up from the entry file to
+// the nearest package.json (npm package case); when no package.json exists
+// the loader falls back to the basename heuristic in extensionsOverride.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const resolveExtensionName = (WorkflowAgent as any).resolveExtensionName as (p: string) => string | null;
+
+test("resolveExtensionName walks up to the nearest package.json and returns the package dir basename", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-dw-ext-name-"));
+  try {
+    const pkgDir = join(root, "pi-simplify");
+    mkdirSync(join(pkgDir, "src"), { recursive: true });
+    writeFileSync(join(pkgDir, "package.json"), "{}");
+    // npm package with the entry file deep inside src/ — resolves to the
+    // package directory name, not the entry subdirectory.
+    assert.equal(resolveExtensionName(join(pkgDir, "src", "index.ts")), "pi-simplify");
+    // A nested entry at the package root resolves the same way.
+    assert.equal(resolveExtensionName(join(pkgDir, "index.ts")), "pi-simplify");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolveExtensionName stops at the NEAREST package.json even when higher ancestors have one", () => {
+  const root = mkdtempSync(join(tmpdir(), "pi-dw-ext-name-guard-"));
+  try {
+    // A controlled package.json one level above the extension must win over
+    // any machine-level stray (e.g. a package.json in the system temp dir).
+    const guard = join(root, "my-ext-package");
+    mkdirSync(join(guard, "extensions", "fetch-full"), { recursive: true });
+    writeFileSync(join(guard, "package.json"), "{}");
+    assert.equal(resolveExtensionName(join(guard, "extensions", "fetch-full", "index.ts")), "my-ext-package");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
