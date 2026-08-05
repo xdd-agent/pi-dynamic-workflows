@@ -17,7 +17,7 @@ export type WorkflowListInput = Static<typeof workflowListSchema>;
 // ── Options ──
 
 export interface WorkflowListToolOptions {
-  storage: WorkflowStorage;
+  getStorage: () => WorkflowStorage;
 }
 
 // ── Detail types ──
@@ -42,7 +42,7 @@ type ListResult = {
 export function createWorkflowListTool(
   options: WorkflowListToolOptions,
 ): ToolDefinition<typeof workflowListSchema, Record<string, unknown>> {
-  const { storage } = options;
+  const { getStorage } = options;
 
   return defineTool({
     name: "workflow_list",
@@ -64,13 +64,15 @@ export function createWorkflowListTool(
       }));
 
       // 2. Collect saved workflows from storage
-      const saved: WorkflowListItem[] = storage.list().map((w: SavedWorkflow) => ({
-        name: w.name,
-        description: w.description,
-        kind: (w.location === "project" ? "saved-project" : "saved-user") as "saved-project" | "saved-user",
-        savedAt: w.savedAt,
-        parameters: w.parameters,
-      }));
+      const saved: WorkflowListItem[] = getStorage()
+        .list()
+        .map((w: SavedWorkflow) => ({
+          name: w.name,
+          description: w.description,
+          kind: (w.location === "project" ? "saved-project" : "saved-user") as "saved-project" | "saved-user",
+          savedAt: w.savedAt,
+          parameters: w.parameters,
+        }));
 
       // 3. Project-saved workflows take precedence over user-saved ones with
       // the same name (a user override shadows the same-named project

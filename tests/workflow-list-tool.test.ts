@@ -36,7 +36,7 @@ function fakeStorage(savedWorkflows: SavedWorkflow[]): WorkflowStorage {
 }
 
 async function execute(storage: WorkflowStorage, params: Record<string, unknown> = {}) {
-  const tool = createWorkflowListTool({ storage });
+  const tool = createWorkflowListTool({ getStorage: () => storage });
   return (tool.execute as any)("list-call", params, undefined, undefined, {});
 }
 
@@ -52,7 +52,7 @@ function workflows(result: Awaited<ReturnType<typeof execute>>): WorkflowListIte
 
 test("workflow_list schema accepts optional filter and rejects unknown keys", () => {
   const storage = fakeStorage([]);
-  const tool = createWorkflowListTool({ storage });
+  const tool = createWorkflowListTool({ getStorage: () => storage });
 
   assert.equal(tool.name, "workflow_list");
   assert.equal((tool.parameters as { type?: string }).type, "object");
